@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <title>Globus Simulation</title>
 <style>
-body {
+body{
     margin:0;
     background:black;
     overflow:hidden;
     font-family:Arial;
 }
-#ui {
+#ui{
     position:absolute;
     top:20px;
     left:20px;
@@ -20,7 +20,7 @@ body {
     border-radius:10px;
     z-index:10;
 }
-canvas {
+canvas{
     display:block;
 }
 </style>
@@ -44,7 +44,14 @@ const ctx = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
+let img = new Image();
+
+/* Öffentliche Erdtextur (funktioniert ohne Download) */
+img.src = "https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular-projection.jpg";
+
 let rotation = 0;
+let isDragging = false;
+let lastX = 0;
 
 const slider = document.getElementById("slider");
 const daysEl = document.getElementById("days");
@@ -64,35 +71,42 @@ function drawEarth(temp){
 
     let centerX = canvas.width/2;
     let centerY = canvas.height/2;
-    let radius = 200;
+    let radius = 250;
 
-    // Farbänderung je nach Temperatur
-    let color = "#2e8b57";
-    if(temp < 0) color = "#8b4513";
-    if(temp < -20) color = "#cccccc";
-    if(temp < -50) color = "#ffffff";
-
-    // 3D-Shading Effekt
-    let gradient = ctx.createRadialGradient(
-        centerX-50, centerY-50, 50,
-        centerX, centerY, radius
-    );
-    gradient.addColorStop(0, "white");
-    gradient.addColorStop(1, color);
-
-    ctx.fillStyle = gradient;
+    ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
-    ctx.fill();
+    ctx.clip();
 
-    // einfache Kontinente (Fake)
-    ctx.fillStyle = "rgba(0,0,0,0.2)";
-    ctx.beginPath();
-    ctx.ellipse(centerX+Math.sin(rotation)*50, centerY-40, 60, 40, 0, 0, Math.PI*2);
-    ctx.fill();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(rotation);
 
+    if(img.complete){
+        ctx.drawImage(img, -radius, -radius, radius*2, radius*2);
+    }
+
+    ctx.restore();
+
+    // Vereisung
+    if(temp < 0){
+        ctx.fillStyle = "rgba(200,230,255,0.3)";
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    if(temp < -30){
+        ctx.fillStyle = "rgba(255,255,255,0.5)";
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    // Verdunkelung
+    let darkness = slider.value / 365;
+    ctx.fillStyle = "rgba(0,0,0," + darkness + ")";
     ctx.beginPath();
-    ctx.ellipse(centerX-80*Math.sin(rotation), centerY+50, 80, 50, 0, 0, Math.PI*2);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
     ctx.fill();
 }
 
@@ -110,13 +124,26 @@ slider.addEventListener("input", function(){
     else status.textContent="Nahe globale Vereisung.";
 });
 
+canvas.addEventListener("mousedown", e=>{
+    isDragging = true;
+    lastX = e.clientX;
+});
+canvas.addEventListener("mouseup", ()=>{
+    isDragging = false;
+});
+canvas.addEventListener("mousemove", e=>{
+    if(isDragging){
+        let dx = e.clientX - lastX;
+        rotation += dx * 0.005;
+        lastX = e.clientX;
+    }
+});
+
 function animate(){
-    rotation += 0.01;
     let temp = calculateTemp(parseInt(slider.value));
     drawEarth(temp);
     requestAnimationFrame(animate);
 }
-
 animate();
 
 window.addEventListener("resize",()=>{
