@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Sonnen-Verschwinden Simulation</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(#87CEEB, #4CAF50);
+    overflow: hidden;
+}
+
+#controls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.9);
+    padding: 15px;
+    border-radius: 10px;
+    z-index: 1000;
+}
+
+#scene {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Sonne */
+#sun {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    background: yellow;
+    border-radius: 50%;
+    top: 50px;
+    right: 100px;
+    box-shadow: 0 0 60px yellow;
+    transition: opacity 1s;
+}
+
+/* Haus */
+#house {
+    position: absolute;
+    bottom: 120px;
+    left: 200px;
+    width: 120px;
+    height: 100px;
+    background: #c0392b;
+}
+
+#roof {
+    position: absolute;
+    bottom: 220px;
+    left: 180px;
+    width: 0;
+    height: 0;
+    border-left: 80px solid transparent;
+    border-right: 80px solid transparent;
+    border-bottom: 60px solid #8e2b1f;
+}
+
+/* Baum */
+.tree {
+    position: absolute;
+    bottom: 120px;
+    width: 30px;
+    height: 80px;
+    background: #8B4513;
+}
+
+.leaves {
+    position: absolute;
+    bottom: 180px;
+    width: 80px;
+    height: 80px;
+    background: green;
+    border-radius: 50%;
+    transition: background 1s;
+}
+
+/* See */
+#lake {
+    position: absolute;
+    bottom: 100px;
+    right: 200px;
+    width: 200px;
+    height: 80px;
+    background: #3498db;
+    border-radius: 50%;
+    transition: background 1s;
+}
+
+/* Tiere & Menschen */
+.entity {
+    position: absolute;
+    bottom: 120px;
+    font-size: 40px;
+    transition: opacity 1s;
+}
+
+#info {
+    margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="controls">
+    <h2>🌞 Simulation: Wenn die Sonne verschwindet</h2>
+    <label>Dauer ohne Sonne (Tage):</label><br>
+    <input type="range" min="0" max="365" value="0" id="slider">
+    <span id="days">0</span> Tage
+    <div id="info"></div>
+</div>
+
+<div id="scene">
+    <div id="sun"></div>
+    <div id="roof"></div>
+    <div id="house"></div>
+
+    <div class="tree" style="left:400px;"></div>
+    <div class="leaves" id="tree1" style="left:375px;"></div>
+
+    <div id="lake"></div>
+
+    <div class="entity" id="animals" style="left:600px;">🐦🐇</div>
+    <div class="entity" id="people" style="left:300px;">👨‍👩‍👧</div>
+</div>
+
+<script>
+const slider = document.getElementById("slider");
+const daysDisplay = document.getElementById("days");
+const sun = document.getElementById("sun");
+const tree = document.getElementById("tree1");
+const lake = document.getElementById("lake");
+const animals = document.getElementById("animals");
+const people = document.getElementById("people");
+const info = document.getElementById("info");
+
+slider.addEventListener("input", function() {
+    let days = parseInt(slider.value);
+    daysDisplay.textContent = days;
+
+    if(days === 0){
+        document.body.style.background = "linear-gradient(#87CEEB, #4CAF50)";
+        sun.style.opacity = "1";
+        tree.style.background = "green";
+        lake.style.background = "#3498db";
+        animals.style.opacity = "1";
+        people.style.opacity = "1";
+        info.innerHTML = "🌍 Alles normal. Die Sonne scheint.";
+    }
+
+    else if(days < 1){
+        document.body.style.background = "linear-gradient(#2c3e50, #1c2833)";
+        sun.style.opacity = "0";
+        info.innerHTML = "🌑 Dunkelheit tritt ein. Temperatur beginnt zu sinken.";
+    }
+
+    else if(days < 7){
+        document.body.style.background = "linear-gradient(#1a252f, #0f1419)";
+        sun.style.opacity = "0";
+        tree.style.background = "#556B2F";
+        info.innerHTML = "❄ Temperaturen fallen stark unter 0°C. Pflanzen stoppen Photosynthese.";
+    }
+
+    else if(days < 30){
+        tree.style.background = "brown";
+        lake.style.background = "#5dade2";
+        animals.style.opacity = "0.5";
+        info.innerHTML = "🌡 Durchschnittstemperatur ca. -40°C. Pflanzen sterben langsam, Tiere kämpfen ums Überleben.";
+    }
+
+    else if(days < 180){
+        lake.style.background = "#85c1e9";
+        animals.style.opacity = "0";
+        info.innerHTML = "🧊 Ozeane beginnen zuzufrieren. Die meisten Tiere sind tot.";
+    }
+
+    else {
+        tree.style.background = "black";
+        lake.style.background = "#d6eaf8";
+        people.style.opacity = "0.3";
+        info.innerHTML = "🌍❄ Nach Monaten: -100°C und kälter. Nur wenige Menschen überleben in Schutzräumen.";
+    }
+});
+</script>
+
+</body>
+</html>
