@@ -2,27 +2,15 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Globus Simulation</title>
+<title>Offline Globus Simulation</title>
 <style>
-body{
-    margin:0;
-    background:black;
-    overflow:hidden;
-    font-family:Arial;
+body { margin:0; background:black; overflow:hidden; font-family:Arial; }
+#ui {
+  position:absolute; top:20px; left:20px;
+  background:rgba(0,0,0,0.8); color:white; padding:15px;
+  border-radius:10px; z-index:10; width:280px;
 }
-#ui{
-    position:absolute;
-    top:20px;
-    left:20px;
-    background:rgba(0,0,0,0.8);
-    color:white;
-    padding:15px;
-    border-radius:10px;
-    z-index:10;
-}
-canvas{
-    display:block;
-}
+canvas { display:block; }
 </style>
 </head>
 <body>
@@ -40,14 +28,8 @@ canvas{
 <script>
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
-
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-
-let img = new Image();
-
-/* Öffentliche Erdtextur (funktioniert ohne Download) */
-img.src = "https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular-projection.jpg";
 
 let rotation = 0;
 let isDragging = false;
@@ -59,96 +41,106 @@ const tempEl = document.getElementById("temp");
 const status = document.getElementById("status");
 
 function calculateTemp(days){
-    if(days===0) return 15;
-    if(days<=7) return 15 - (days*4.5);
-    if(days<=30) return -17 - ((days-7)*1);
-    return -40 - ((days-30)*0.1);
+  if(days===0) return 15;
+  if(days<=7) return 15 - (days*4.5);
+  if(days<=30) return -17 - ((days-7)*1);
+  return -40 - ((days-30)*0.1);
 }
 
 function drawEarth(temp){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx = canvas.width/2;
+  const cy = canvas.height/2;
+  const radius = 200;
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Globus Hintergrund (blau für Ozeane)
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.fillStyle = "#1E90FF"; 
+  ctx.fill();
 
-    let centerX = canvas.width/2;
-    let centerY = canvas.height/2;
-    let radius = 250;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
 
-    ctx.save();
+  // einfache Kontinente (grüne Ellipsen)
+  ctx.fillStyle = temp>=0 ? "#228B22" : "#8B4513"; // braun wenn kalt
+  ctx.beginPath();
+  ctx.ellipse(0, -50, 70, 40, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(-80, 50, 80, 50, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Städte
+  ctx.fillStyle = "#FFD700";
+  ctx.beginPath();
+  ctx.arc(20,0,5,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(-40,-20,4,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Eis overlay
+  if(temp < 0){
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
-    ctx.clip();
-
-    ctx.translate(centerX, centerY);
-    ctx.rotate(rotation);
-
-    if(img.complete){
-        ctx.drawImage(img, -radius, -radius, radius*2, radius*2);
-    }
-
-    ctx.restore();
-
-    // Vereisung
-    if(temp < 0){
-        ctx.fillStyle = "rgba(200,230,255,0.3)";
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
-        ctx.fill();
-    }
-
-    if(temp < -30){
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
-        ctx.fill();
-    }
-
-    // Verdunkelung
-    let darkness = slider.value / 365;
-    ctx.fillStyle = "rgba(0,0,0," + darkness + ")";
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI*2);
+    ctx.arc(cx, cy, radius, 0, Math.PI*2);
     ctx.fill();
+  }
+  if(temp < -30){
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Verdunkelung
+  const darkness = slider.value/365;
+  ctx.fillStyle = `rgba(0,0,0,${darkness})`;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.fill();
 }
 
-slider.addEventListener("input", function(){
-    let days = parseInt(slider.value);
-    daysEl.textContent = days;
+slider.addEventListener("input", ()=>{
+  const days = parseInt(slider.value);
+  daysEl.textContent = days;
+  const temp = calculateTemp(days);
+  tempEl.textContent = temp.toFixed(1);
 
-    let temp = calculateTemp(days);
-    tempEl.textContent = temp.toFixed(1);
-
-    if(days===0) status.textContent="Normale Ökosysteme.";
-    else if(days<7) status.textContent="Photosynthese stoppt.";
-    else if(days<30) status.textContent="Massives Artensterben.";
-    else if(days<180) status.textContent="Ozeane frieren.";
-    else status.textContent="Nahe globale Vereisung.";
+  if(days===0) status.textContent="Normale Ökosysteme.";
+  else if(days<7) status.textContent="Photosynthese stoppt.";
+  else if(days<30) status.textContent="Massives Artensterben.";
+  else if(days<180) status.textContent="Ozeane frieren.";
+  else status.textContent="Nahe globale Vereisung.";
 });
 
 canvas.addEventListener("mousedown", e=>{
-    isDragging = true;
-    lastX = e.clientX;
+  isDragging = true; lastX = e.clientX;
 });
-canvas.addEventListener("mouseup", ()=>{
-    isDragging = false;
-});
+canvas.addEventListener("mouseup", ()=>{ isDragging=false; });
 canvas.addEventListener("mousemove", e=>{
-    if(isDragging){
-        let dx = e.clientX - lastX;
-        rotation += dx * 0.005;
-        lastX = e.clientX;
-    }
+  if(isDragging){ 
+    rotation += (e.clientX-lastX)*0.005;
+    lastX = e.clientX;
+  }
 });
 
 function animate(){
-    let temp = calculateTemp(parseInt(slider.value));
-    drawEarth(temp);
-    requestAnimationFrame(animate);
+  const temp = calculateTemp(parseInt(slider.value));
+  drawEarth(temp);
+  requestAnimationFrame(animate);
 }
 animate();
 
-window.addEventListener("resize",()=>{
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+window.addEventListener("resize", ()=>{
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 });
 </script>
 
