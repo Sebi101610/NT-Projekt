@@ -2,23 +2,26 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Sonnen-Verschwinden Simulation</title>
+<title>Realistische Sonnen-Verschwinden Simulation</title>
 
 <style>
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(#87CEEB, #4CAF50);
+    font-family: 'Segoe UI', sans-serif;
     overflow: hidden;
+    transition: background 2s;
 }
 
+/* Steuerung */
 #controls {
     position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(255,255,255,0.9);
-    padding: 15px;
-    border-radius: 10px;
+    top: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
     z-index: 1000;
 }
 
@@ -28,81 +31,92 @@ body {
     height: 100vh;
 }
 
+/* Himmel */
+.sky {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(#6ec6ff, #4CAF50);
+    transition: background 3s;
+}
+
+/* Sterne */
+.stars {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: radial-gradient(white 1px, transparent 1px);
+    background-size: 50px 50px;
+    opacity: 0;
+    transition: opacity 3s;
+}
+
 /* Sonne */
 #sun {
     position: absolute;
-    width: 120px;
-    height: 120px;
-    background: yellow;
+    width: 150px;
+    height: 150px;
+    background: radial-gradient(circle, #fff176, #fbc02d);
     border-radius: 50%;
-    top: 50px;
-    right: 100px;
-    box-shadow: 0 0 60px yellow;
-    transition: opacity 1s;
+    top: 80px;
+    right: 150px;
+    box-shadow: 0 0 120px rgba(255, 223, 0, 0.9);
+    transition: opacity 3s;
 }
 
-/* Haus */
-#house {
+/* Boden */
+.ground {
     position: absolute;
-    bottom: 120px;
-    left: 200px;
-    width: 120px;
-    height: 100px;
-    background: #c0392b;
-}
-
-#roof {
-    position: absolute;
-    bottom: 220px;
-    left: 180px;
-    width: 0;
-    height: 0;
-    border-left: 80px solid transparent;
-    border-right: 80px solid transparent;
-    border-bottom: 60px solid #8e2b1f;
+    bottom: 0;
+    width: 100%;
+    height: 35%;
+    background: linear-gradient(#2e7d32, #1b5e20);
+    transition: background 3s;
 }
 
 /* Baum */
 .tree {
     position: absolute;
-    bottom: 120px;
-    width: 30px;
-    height: 80px;
-    background: #8B4513;
+    bottom: 35%;
+    left: 30%;
+}
+
+.trunk {
+    width: 20px;
+    height: 100px;
+    background: #5d4037;
+    margin-left: 30px;
 }
 
 .leaves {
-    position: absolute;
-    bottom: 180px;
     width: 80px;
     height: 80px;
-    background: green;
+    background: radial-gradient(circle, #2e7d32, #1b5e20);
     border-radius: 50%;
-    transition: background 1s;
+    transition: background 2s;
 }
 
 /* See */
 #lake {
     position: absolute;
-    bottom: 100px;
-    right: 200px;
-    width: 200px;
-    height: 80px;
-    background: #3498db;
+    bottom: 20%;
+    right: 20%;
+    width: 250px;
+    height: 100px;
+    background: radial-gradient(circle, #42a5f5, #1565c0);
     border-radius: 50%;
-    transition: background 1s;
+    transition: background 3s;
 }
 
-/* Tiere & Menschen */
-.entity {
+/* Frost */
+#frost {
     position: absolute;
-    bottom: 120px;
-    font-size: 40px;
-    transition: opacity 1s;
-}
-
-#info {
-    margin-top: 10px;
+    width: 100%;
+    height: 100%;
+    background: rgba(200, 230, 255, 0.2);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    transition: opacity 3s;
 }
 </style>
 </head>
@@ -110,83 +124,81 @@ body {
 <body>
 
 <div id="controls">
-    <h2>🌞 Simulation: Wenn die Sonne verschwindet</h2>
-    <label>Dauer ohne Sonne (Tage):</label><br>
+    <h2>🌞 Was passiert ohne Sonne?</h2>
     <input type="range" min="0" max="365" value="0" id="slider">
-    <span id="days">0</span> Tage
-    <div id="info"></div>
+    <p><strong>Tage ohne Sonne:</strong> <span id="days">0</span></p>
+    <p><strong>Temperatur:</strong> <span id="temp">15</span> °C</p>
+    <p id="status">Alles normal.</p>
 </div>
 
 <div id="scene">
+    <div class="sky" id="sky"></div>
+    <div class="stars" id="stars"></div>
     <div id="sun"></div>
-    <div id="roof"></div>
-    <div id="house"></div>
+    <div class="ground" id="ground"></div>
 
-    <div class="tree" style="left:400px;"></div>
-    <div class="leaves" id="tree1" style="left:375px;"></div>
+    <div class="tree">
+        <div class="leaves" id="leaves"></div>
+        <div class="trunk"></div>
+    </div>
 
     <div id="lake"></div>
-
-    <div class="entity" id="animals" style="left:600px;">🐦🐇</div>
-    <div class="entity" id="people" style="left:300px;">👨‍👩‍👧</div>
+    <div id="frost"></div>
 </div>
 
 <script>
 const slider = document.getElementById("slider");
 const daysDisplay = document.getElementById("days");
+const tempDisplay = document.getElementById("temp");
+const status = document.getElementById("status");
+
+const sky = document.getElementById("sky");
+const stars = document.getElementById("stars");
 const sun = document.getElementById("sun");
-const tree = document.getElementById("tree1");
+const leaves = document.getElementById("leaves");
 const lake = document.getElementById("lake");
-const animals = document.getElementById("animals");
-const people = document.getElementById("people");
-const info = document.getElementById("info");
+const frost = document.getElementById("frost");
+const ground = document.getElementById("ground");
 
 slider.addEventListener("input", function() {
+
     let days = parseInt(slider.value);
     daysDisplay.textContent = days;
 
-    if(days === 0){
-        document.body.style.background = "linear-gradient(#87CEEB, #4CAF50)";
-        sun.style.opacity = "1";
-        tree.style.background = "green";
-        lake.style.background = "#3498db";
-        animals.style.opacity = "1";
-        people.style.opacity = "1";
-        info.innerHTML = "🌍 Alles normal. Die Sonne scheint.";
-    }
+    // Temperaturmodell (vereinfachtes realistisches Modell)
+    let temperature = 15 - (days * 0.5);
 
-    else if(days < 1){
-        document.body.style.background = "linear-gradient(#2c3e50, #1c2833)";
-        sun.style.opacity = "0";
-        info.innerHTML = "🌑 Dunkelheit tritt ein. Temperatur beginnt zu sinken.";
-    }
+    if(days > 7) temperature = 15 - (7 * 0.5) - ((days-7) * 1.5);
+    if(days > 30) temperature = -40 - ((days-30) * 0.5);
+    if(temperature < -150) temperature = -150;
 
-    else if(days < 7){
-        document.body.style.background = "linear-gradient(#1a252f, #0f1419)";
-        sun.style.opacity = "0";
-        tree.style.background = "#556B2F";
-        info.innerHTML = "❄ Temperaturen fallen stark unter 0°C. Pflanzen stoppen Photosynthese.";
-    }
+    tempDisplay.textContent = temperature.toFixed(1);
 
-    else if(days < 30){
-        tree.style.background = "brown";
-        lake.style.background = "#5dade2";
-        animals.style.opacity = "0.5";
-        info.innerHTML = "🌡 Durchschnittstemperatur ca. -40°C. Pflanzen sterben langsam, Tiere kämpfen ums Überleben.";
-    }
+    // Himmel & Sonne
+    let darkness = Math.min(days / 5, 1);
+    sky.style.background = `linear-gradient(rgb(${110-90*darkness},${198-150*darkness},255), rgb(${76-60*darkness},${175-140*darkness},80))`;
+    stars.style.opacity = darkness;
+    sun.style.opacity = 1 - darkness;
 
-    else if(days < 180){
-        lake.style.background = "#85c1e9";
-        animals.style.opacity = "0";
-        info.innerHTML = "🧊 Ozeane beginnen zuzufrieren. Die meisten Tiere sind tot.";
-    }
+    // Baum stirbt
+    if(temperature < 0) leaves.style.background = "brown";
+    if(temperature < -20) leaves.style.background = "black";
 
-    else {
-        tree.style.background = "black";
-        lake.style.background = "#d6eaf8";
-        people.style.opacity = "0.3";
-        info.innerHTML = "🌍❄ Nach Monaten: -100°C und kälter. Nur wenige Menschen überleben in Schutzräumen.";
-    }
+    // See friert
+    if(temperature < 0) lake.style.background = "radial-gradient(circle, #bbdefb, #90caf9)";
+    if(temperature < -30) lake.style.background = "#e3f2fd";
+
+    // Frost Overlay
+    if(temperature < -10) frost.style.opacity = 0.4;
+    else frost.style.opacity = 0;
+
+    // Statusmeldungen
+    if(days === 0) status.textContent = "Die Sonne scheint – stabiles Ökosystem.";
+    else if(days < 3) status.textContent = "Dunkelheit beginnt. Temperaturen sinken.";
+    else if(days < 7) status.textContent = "Photosynthese stoppt. Pflanzen geraten unter Stress.";
+    else if(days < 30) status.textContent = "Massives Artensterben beginnt.";
+    else if(days < 180) status.textContent = "Ozeane frieren oberflächlich zu.";
+    else status.textContent = "Nahezu globale Vereisung. Nur wenige Lebensformen überleben.";
 });
 </script>
 
