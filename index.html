@@ -2,146 +2,109 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Offline Globus Simulation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulation: Was passiert ohne Sonne?</title>
+
 <style>
-body { margin:0; background:black; overflow:hidden; font-family:Arial; }
-#ui {
-  position:absolute; top:20px; left:20px;
-  background:rgba(0,0,0,0.8); color:white; padding:15px;
-  border-radius:10px; z-index:10; width:280px;
-}
-canvas { display:block; }
+    body {
+        font-family: Arial, sans-serif;
+        background: linear-gradient(to bottom, #87CEEB, #1e3c72);
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 0;
+        transition: background 2s;
+    }
+
+    h1 {
+        margin-top: 20px;
+    }
+
+    .container {
+        margin-top: 40px;
+    }
+
+    select, button {
+        padding: 10px;
+        font-size: 16px;
+        margin: 10px;
+        border-radius: 5px;
+        border: none;
+    }
+
+    button {
+        cursor: pointer;
+        background-color: orange;
+        color: black;
+        font-weight: bold;
+    }
+
+    .result {
+        margin-top: 30px;
+        font-size: 18px;
+        width: 80%;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 20px;
+        background-color: rgba(0,0,0,0.5);
+        border-radius: 10px;
+    }
+
+    .dark {
+        background: linear-gradient(to bottom, #000000, #050505);
+    }
 </style>
 </head>
+
 <body>
 
-<div id="ui">
-<h2>🌞 Sonne verschwindet</h2>
-<input type="range" min="0" max="365" value="0" id="slider">
-<p>Tage: <span id="days">0</span></p>
-<p>Ø Temperatur: <span id="temp">15</span> °C</p>
-<p id="status">Normale Bedingungen</p>
+<h1>☀️ Was passiert, wenn die Sonne verschwindet?</h1>
+
+<div class="container">
+    <label for="zeit">Wähle eine Zeitperiode:</label><br>
+    <select id="zeit">
+        <option value="8min">8 Minuten</option>
+        <option value="1tag">1 Tag</option>
+        <option value="1woche">1 Woche</option>
+        <option value="1jahr">1 Jahr</option>
+        <option value="10jahre">10 Jahre</option>
+    </select>
+    <br>
+    <button onclick="simulate()">Simulation starten</button>
 </div>
 
-<canvas id="canvas"></canvas>
+<div class="result" id="output">
+    Wähle eine Zeitperiode und starte die Simulation.
+</div>
 
 <script>
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+function simulate() {
+    const selection = document.getElementById("zeit").value;
+    const output = document.getElementById("output");
+    const body = document.body;
 
-let rotation = 0;
-let isDragging = false;
-let lastX = 0;
+    body.classList.add("dark");
 
-const slider = document.getElementById("slider");
-const daysEl = document.getElementById("days");
-const tempEl = document.getElementById("temp");
-const status = document.getElementById("status");
+    let text = "";
 
-function calculateTemp(days){
-  if(days===0) return 15;
-  if(days<=7) return 15 - (days*4.5);
-  if(days<=30) return -17 - ((days-7)*1);
-  return -40 - ((days-30)*0.1);
+    if (selection === "8min") {
+        text = "Nach 8 Minuten würde es auf der Erde plötzlich dunkel werden. Erst dann bemerken wir, dass die Sonne verschwunden ist. Gleichzeitig verschwindet auch ihre Gravitation – die Erde würde beginnen, sich geradeaus ins All zu bewegen.";
+    }
+    else if (selection === "1tag") {
+        text = "Nach 1 Tag sinkt die Durchschnittstemperatur auf etwa 0°C. Pflanzen können keine Photosynthese mehr betreiben. Es wird weltweit eisig kalt.";
+    }
+    else if (selection === "1woche") {
+        text = "Nach 1 Woche liegen die Temperaturen bei etwa -17°C. Viele Pflanzen sterben ab. Erste Teile der Nahrungskette brechen zusammen.";
+    }
+    else if (selection === "1jahr") {
+        text = "Nach 1 Jahr liegt die Durchschnittstemperatur bei etwa -73°C. Die Ozeane sind an der Oberfläche gefroren. Nur wenige Lebensformen nahe hydrothermaler Quellen überleben.";
+    }
+    else if (selection === "10jahre") {
+        text = "Nach 10 Jahren ist die Erde eine gefrorene, dunkle Welt mit Temperaturen um -200°C. Fast alles Leben auf der Oberfläche ist verschwunden.";
+    }
+
+    output.innerHTML = text;
 }
-
-function drawEarth(temp){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const cx = canvas.width/2;
-  const cy = canvas.height/2;
-  const radius = 200;
-
-  // Globus Hintergrund (blau für Ozeane)
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fillStyle = "#1E90FF"; 
-  ctx.fill();
-
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotation);
-
-  // einfache Kontinente (grüne Ellipsen)
-  ctx.fillStyle = temp>=0 ? "#228B22" : "#8B4513"; // braun wenn kalt
-  ctx.beginPath();
-  ctx.ellipse(0, -50, 70, 40, 0, 0, Math.PI*2);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.ellipse(-80, 50, 80, 50, 0, 0, Math.PI*2);
-  ctx.fill();
-
-  // Städte
-  ctx.fillStyle = "#FFD700";
-  ctx.beginPath();
-  ctx.arc(20,0,5,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(-40,-20,4,0,Math.PI*2);
-  ctx.fill();
-
-  ctx.restore();
-
-  // Eis overlay
-  if(temp < 0){
-    ctx.fillStyle = "rgba(255,255,255,0.3)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI*2);
-    ctx.fill();
-  }
-  if(temp < -30){
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI*2);
-    ctx.fill();
-  }
-
-  // Verdunkelung
-  const darkness = slider.value/365;
-  ctx.fillStyle = `rgba(0,0,0,${darkness})`;
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI*2);
-  ctx.fill();
-}
-
-slider.addEventListener("input", ()=>{
-  const days = parseInt(slider.value);
-  daysEl.textContent = days;
-  const temp = calculateTemp(days);
-  tempEl.textContent = temp.toFixed(1);
-
-  if(days===0) status.textContent="Normale Ökosysteme.";
-  else if(days<7) status.textContent="Photosynthese stoppt.";
-  else if(days<30) status.textContent="Massives Artensterben.";
-  else if(days<180) status.textContent="Ozeane frieren.";
-  else status.textContent="Nahe globale Vereisung.";
-});
-
-canvas.addEventListener("mousedown", e=>{
-  isDragging = true; lastX = e.clientX;
-});
-canvas.addEventListener("mouseup", ()=>{ isDragging=false; });
-canvas.addEventListener("mousemove", e=>{
-  if(isDragging){ 
-    rotation += (e.clientX-lastX)*0.005;
-    lastX = e.clientX;
-  }
-});
-
-function animate(){
-  const temp = calculateTemp(parseInt(slider.value));
-  drawEarth(temp);
-  requestAnimationFrame(animate);
-}
-animate();
-
-window.addEventListener("resize", ()=>{
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-});
 </script>
 
 </body>
