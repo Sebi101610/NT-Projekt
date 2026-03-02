@@ -2,47 +2,41 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>3D Klima Simulation ohne Sonne</title>
+<title>Realistische 3D Klimasimulation ohne Sonne</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <style>
-body {
-    margin: 0;
-    overflow: hidden;
-    background: black;
-    color: white;
-    font-family: Arial, sans-serif;
-}
-#info {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(0,0,0,0.6);
-    padding: 15px;
-    border-radius: 8px;
+body { margin:0; overflow:hidden; background:black; color:white; font-family:Arial; }
+#panel {
+    position:absolute;
+    top:10px;
+    left:10px;
+    background:rgba(0,0,0,0.7);
+    padding:15px;
+    border-radius:10px;
 }
 button {
-    padding: 8px 15px;
-    margin-top: 10px;
-    cursor: pointer;
-    background: orange;
-    border: none;
-    border-radius: 5px;
+    padding:8px 15px;
+    background:orange;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
 }
 </style>
 </head>
 <body>
 
-<div id="info">
-<h2>🌍 Simulation ohne Sonne</h2>
-<div id="status">Temperatur: 15°C</div>
+<div id="panel">
+<h2>🌍 Klimasimulation ohne Sonne</h2>
+<div id="status">Tag 0 | Globale Temp: 15°C</div>
 <button onclick="startSimulation()">Simulation starten</button>
 </div>
 
 <script>
 
+// Szene
 let scene = new THREE.Scene();
 let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 let renderer = new THREE.WebGLRenderer({antialias:true});
@@ -51,76 +45,101 @@ document.body.appendChild(renderer.domElement);
 
 let controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-let geometry = new THREE.SphereGeometry(5, 64, 64);
-let material = new THREE.MeshStandardMaterial({
-    color: 0x2e8b57,
-    roughness: 1
-});
+// Erdtextur
+let loader = new THREE.TextureLoader();
+let earthTexture = loader.load("https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg");
+
+let geometry = new THREE.SphereGeometry(5, 128, 128);
+let material = new THREE.MeshPhongMaterial({ map: earthTexture });
 
 let earth = new THREE.Mesh(geometry, material);
 scene.add(earth);
 
-let light = new THREE.PointLight(0xffffff, 1);
+// Licht (wird später reduziert)
+let light = new THREE.PointLight(0xffffff, 1.2);
 light.position.set(10,10,10);
 scene.add(light);
 
 camera.position.z = 12;
 
-let temperature = 15;
-let time = 0;
+// Temperaturmodell
+let globalTemp = 15;
+let day = 0;
+let running = false;
 
 function startSimulation(){
-
-    let interval = setInterval(()=>{
-
-        time++;
-
-        // Realistischere Abkühlung
-        if(time <= 7){
-            temperature -= 3;
-        } else if(time <= 30){
-            temperature -= 0.5;
-        } else {
-            temperature -= 0.02;
-        }
-
-        updateEarthColor();
-        document.getElementById("status").innerHTML =
-            "🌡 Globale Temperatur: " + temperature.toFixed(1) + " °C";
-
-        if(time > 365){
-            clearInterval(interval);
-        }
-
-    }, 200);
+    running = true;
 }
 
-function updateEarthColor(){
+function updateClimate(){
 
-    // Vegetation stirbt unter 0°C langsam ab
-    if(temperature > 0){
-        earth.material.color.set(0x2e8b57); // grün
-    }
-    else if(temperature > -20){
-        earth.material.color.set(0x8b4513); // braun
-    }
-    else if(temperature > -50){
-        earth.material.color.set(0xaaaaaa); // grau
-    }
-    else{
-        earth.material.color.set(0xffffff); // komplett vereist
+    if(!running) return;
+
+    day++;
+
+    // Realistischere Abkühlung (vereinfachte Energiebilanz)
+    if(day <= 7){
+        globalTemp -= 3;
+    } else if(day <= 30){
+        globalTemp -= 0.5;
+    } else {
+        globalTemp -= 0.02;
     }
 
+    // Lichtintensität sinkt
+    light.intensity *= 0.995;
+
+    applyTemperatureMap();
+
+    document.getElementById("status").innerHTML =
+        "Tag " + day + " | Globale Temp: " + globalTemp.toFixed(1) + " °C";
+}
+
+function applyTemperatureMap(){
+
+    let colors = [];
+    let position = geometry.attributes.position;
+
+    for(let i=0; i<position.count; i++){
+
+        let y = position.getY(i);
+        let latFactor = 1 - Math.abs(y/5); // Äquator wärmer
+
+        let localTemp = globalTemp * latFactor;
+
+        let color = new THREE.Color();
+
+        if(localTemp > 0){
+            color.setRGB(0, 0.6, 0); // grün
+        }
+        else if(localTemp > -20){
+            color.setRGB(0.5, 0.3, 0); // braun
+        }
+        else if(localTemp > -50){
+            color.setRGB(0.7, 0.7, 0.7); // grau
+        }
+        else{
+            color.setRGB(1,1,1); // weiß (vereist)
+        }
+
+        colors.push(color.r, color.g, color.b);
+    }
+
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    material.vertexColors = true;
+    geometry.attributes.color.needsUpdate = true;
 }
 
 function animate(){
     requestAnimationFrame(animate);
-    earth.rotation.y += 0.002;
+    earth.rotation.y += 0.0015;
     controls.update();
+    updateClimate();
     renderer.render(scene, camera);
 }
 animate();
 
 </script>
+
 </body>
 </html>
