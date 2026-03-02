@@ -2,152 +2,122 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Stabile Klimasimulation</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+<title>Klimasimulation stabil</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { margin:0; overflow:hidden; background:black; color:white; font-family:Arial }
-#panel { position:absolute; top:10px; left:10px; background:rgba(0,0,0,0.85); padding:15px; border-radius:10px; width:320px; }
-button { margin:3px; padding:6px 10px; background:orange; border:none; border-radius:5px }
-canvas { background:white; border-radius:8px; margin-top:10px; }
+body { font-family:Arial; background:black; color:white; margin:0; padding:0; display:flex; flex-direction:column; align-items:center; }
+#controls { margin:10px; }
+button { margin:3px; padding:5px 10px; background:orange; border:none; border-radius:5px; }
+#canvas { background:black; display:block; margin-top:10px; }
 </style>
 </head>
 <body>
-<div id="panel">
-<h3>🌍 Stabile Klimasimulation</h3>
-<div id="status"></div>
+<h2>🌍 Klimasimulation – stabile Version</h2>
+<div id="controls">
 <button onclick="running=true">Start</button>
 <button onclick="running=false">Pause</button>
 <button onclick="resetSim()">Reset</button>
 <button onclick="exportCSV()">CSV Export</button>
-<canvas id="chart" width="320" height="150"></canvas>
 </div>
+<canvas id="canvas" width="600" height="300"></canvas>
+<canvas id="chart" width="600" height="200"></canvas>
 
 <script>
-const ZONES = 36;
-let zones = [];
-let day = 0;
-let running = false;
-let history = [];
+const ZONES=36;
+let zones=[];
+let day=0;
+let running=false;
+let history=[];
 
-// --- Three.js Globus ---
-let scene = new THREE.Scene();
-let camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth, innerHeight);
-document.body.appendChild(renderer.domElement);
-let controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-let geometry = new THREE.SphereGeometry(5, 180, 180);
-let material = new THREE.MeshPhongMaterial({vertexColors:true});
-let earth = new THREE.Mesh(geometry, material);
-scene.add(earth);
-
-let light = new THREE.PointLight(0xffffff, 1.2);
-light.position.set(10, 10, 10);
-scene.add(light);
-
-camera.position.z = 12;
-
-// --- Klimadaten ---
 function resetSim(){
-    zones = [];
-    history = [];
-    day = 0;
+    zones=[];
+    day=0;
+    history=[];
     for(let i=0;i<ZONES;i++){
-        let phi=Math.abs(i/(ZONES-1)-0.5)*2;
+        let lat=Math.abs(i/(ZONES-1)-0.5)*2;
         zones.push({
-            temp: 288 - phi*40,
-            vegetation: 1-phi*0.5,
-            ice: 0
+            temp: 288 - lat*40,
+            vegetation:1-lat*0.5,
+            ice:0
         });
     }
-    updateSurface();
+    drawCanvas();
     updateChart();
 }
 resetSim();
 
-// --- Physik (vereinfacht) ---
-function stepPhysics(){
-    let newTemps = [];
+// --- Simulation Schritt ---
+function stepSimulation(){
+    let newTemps=[];
     for(let i=0;i<ZONES;i++){
         let z=zones[i];
-        let dT=-0.01; // konstante Abkühlung pro Schritt
+        let dT=-0.1; // konstante Abkühlung
         let diffusion=0;
-        if(i>0) diffusion += 0.01*(zones[i-1].temp - z.temp);
-        if(i<ZONES-1) diffusion += 0.01*(zones[i+1].temp - z.temp);
-        newTemps[i] = z.temp + dT + diffusion;
+        if(i>0) diffusion +=0.05*(zones[i-1].temp - z.temp);
+        if(i<ZONES-1) diffusion +=0.05*(zones[i+1].temp - z.temp);
+        newTemps[i]=z.temp + dT + diffusion;
     }
     for(let i=0;i<ZONES;i++){
         let z=zones[i];
-        z.temp = newTemps[i];
-        if(z.temp < 273){ z.ice = Math.min(1, z.ice+0.01); }
-        if(z.temp < 275){ z.vegetation = Math.max(0, z.vegetation-0.01); }
+        z.temp=newTemps[i];
+        if(z.temp<273){ z.ice = Math.min(1, z.ice+0.02); }
+        if(z.temp<275){ z.vegetation = Math.max(0, z.vegetation-0.02); }
     }
 }
 
-// --- Globus Update ---
-function updateSurface(){
-    let colors = [];
-    let pos = geometry.attributes.position;
-    for(let i=0;i<pos.count;i++){
-        let y = pos.getY(i);
-        let latNorm = (y/5+1)/2;
-        let zoneIndex = Math.floor(latNorm*(ZONES-1));
-        let z = zones[zoneIndex];
-        let color = new THREE.Color();
-        if(z.vegetation>0.4) color.setRGB(0.1*z.vegetation,0.6*z.vegetation,0.1);
-        else if(z.ice>0.3) color.setRGB(1,1,1);
-        else color.setRGB(0.5,0.3,0.1);
-        colors.push(color.r,color.g,color.b);
+// --- Canvas Zeichnen ---
+let canvas=document.getElementById("canvas");
+let ctx=canvas.getContext("2d");
+function drawCanvas(){
+    let w=canvas.width;
+    let h=canvas.height;
+    ctx.clearRect(0,0,w,h);
+    for(let i=0;i<ZONES;i++){
+        let z=zones[i];
+        let color;
+        if(z.vegetation>0.4) color="green";
+        else if(z.ice>0.3) color="white";
+        else color="brown";
+        ctx.fillStyle=color;
+        ctx.fillRect(i*(w/ZONES),0,w/ZONES,h);
     }
-    geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-    geometry.attributes.color.needsUpdate=true;
 }
 
 // --- Chart ---
-let ctx = document.getElementById("chart");
-let chart = new Chart(ctx,{
+let chartCanvas=document.getElementById("chart");
+let chart=new Chart(chartCanvas,{
     type:'line',
-    data:{labels:[], datasets:[{label:'Globale Mitteltemperatur °C', data:[], borderColor:'red', tension:0.2}]},
+    data:{labels:[], datasets:[{label:'Globale Mitteltemperatur °C', data:[], borderColor:'red', fill:false}]},
     options:{animation:false, scales:{y:{min:-50,max:30}}}
 });
-
 function updateChart(){
-    let meanTemp = zones.reduce((a,b)=>a+b.temp,0)/ZONES - 273;
-    chart.data.labels.push(Math.floor(day));
+    let meanTemp=zones.reduce((a,b)=>a+b.temp,0)/ZONES-273;
+    chart.data.labels.push(day.toFixed(1));
     chart.data.datasets[0].data.push(meanTemp);
     chart.update();
-    history.push({day:Math.floor(day), temp:meanTemp});
+    history.push({day,meanTemp});
 }
 
+// --- CSV Export ---
 function exportCSV(){
     let csv="Tag,Temperatur\n";
-    history.forEach(r=>{ csv+=r.day+","+r.temp+"\n"; });
+    history.forEach(r=>{ csv+=r.day+","+r.meanTemp+"\n"; });
     let blob=new Blob([csv],{type:"text/csv"});
     let a=document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href=URL.createObjectURL(blob);
     a.download="klimasimulation.csv";
     a.click();
 }
 
-// --- Animation ---
+// --- Animation Loop ---
 function animate(){
     requestAnimationFrame(animate);
-    earth.rotation.y += 0.0005;
-    controls.update();
     if(running){
-        day += 0.2;
-        stepPhysics();
-        updateSurface();
-        if(Math.floor(day)%5===0) updateChart();
+        day+=0.2;
+        stepSimulation();
+        drawCanvas();
+        if(Math.floor(day*10)%5===0) updateChart();
     }
-    let meanTemp = zones.reduce((a,b)=>a.temp,0)/ZONES-273;
-    document.getElementById("status").innerHTML = 
-        "Tag "+Math.floor(day)+"<br>"+
-        "Globale Mitteltemperatur: "+meanTemp.toFixed(1)+" °C";
-    renderer.render(scene,camera);
 }
 animate();
 </script>
