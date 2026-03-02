@@ -2,155 +2,125 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Realistische Klima-Simulation ohne Sonne</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>3D Klima Simulation ohne Sonne</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+
 <style>
-body{
-    margin:0;
-    font-family:Arial, sans-serif;
-    background:black;
-    color:white;
-    text-align:center;
+body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+    color: white;
+    font-family: Arial, sans-serif;
 }
-.container{
-    padding:20px;
+#info {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.6);
+    padding: 15px;
+    border-radius: 8px;
 }
-button{
-    padding:10px 20px;
-    font-size:16px;
-    background:orange;
-    border:none;
-    border-radius:5px;
-    cursor:pointer;
-}
-canvas{
-    max-width:900px;
-    margin:20px auto;
-}
-.status{
-    margin-top:20px;
-    font-size:18px;
+button {
+    padding: 8px 15px;
+    margin-top: 10px;
+    cursor: pointer;
+    background: orange;
+    border: none;
+    border-radius: 5px;
 }
 </style>
 </head>
 <body>
 
-<div class="container">
-<h1>🌍 Was passiert mit dem Klima ohne Sonne?</h1>
-<p>Simulation basiert auf realistischen physikalischen Näherungen</p>
+<div id="info">
+<h2>🌍 Simulation ohne Sonne</h2>
+<div id="status">Temperatur: 15°C</div>
 <button onclick="startSimulation()">Simulation starten</button>
-
-<canvas id="chart"></canvas>
-
-<div class="status" id="status">
-Temperatur: 15°C (Startwert)
-</div>
 </div>
 
 <script>
 
-let chart;
-let temperature = 15; // globale Durchschnittstemperatur °C
-let time = 0; // Tage
-let oceanFrozen = 0; // Eis-Schicht in Metern
-let biosphereCollapse = false;
+let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+let renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+let geometry = new THREE.SphereGeometry(5, 64, 64);
+let material = new THREE.MeshStandardMaterial({
+    color: 0x2e8b57,
+    roughness: 1
+});
+
+let earth = new THREE.Mesh(geometry, material);
+scene.add(earth);
+
+let light = new THREE.PointLight(0xffffff, 1);
+light.position.set(10,10,10);
+scene.add(light);
+
+camera.position.z = 12;
+
+let temperature = 15;
+let time = 0;
 
 function startSimulation(){
-
-    temperature = 15;
-    time = 0;
-    oceanFrozen = 0;
-    biosphereCollapse = false;
-
-    const ctx = document.getElementById('chart').getContext('2d');
-
-    if(chart) chart.destroy();
-
-    chart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Globale Durchschnittstemperatur (°C)',
-                data: [],
-                borderColor: 'cyan',
-                borderWidth: 2,
-                tension: 0.2
-            }]
-        },
-        options:{
-            scales:{
-                y:{
-                    beginAtZero:false
-                }
-            }
-        }
-    });
 
     let interval = setInterval(()=>{
 
         time++;
 
-        // Realistische exponentielle Abkühlung
+        // Realistischere Abkühlung
         if(time <= 7){
-            temperature -= 3;  // schneller Abfall erste Woche
+            temperature -= 3;
         } else if(time <= 30){
             temperature -= 0.5;
         } else {
-            temperature -= 0.02; // langsame weitere Abkühlung
+            temperature -= 0.02;
         }
 
-        // Ozean gefriert unter 0°C
-        if(temperature < 0){
-            oceanFrozen += 0.1; // 10 cm pro Tag
-        }
+        updateEarthColor();
+        document.getElementById("status").innerHTML =
+            "🌡 Globale Temperatur: " + temperature.toFixed(1) + " °C";
 
-        // Biosphäre bricht bei -20°C global zusammen
-        if(temperature < -20 && !biosphereCollapse){
-            biosphereCollapse = true;
-        }
-
-        chart.data.labels.push("Tag " + time);
-        chart.data.datasets[0].data.push(temperature);
-        chart.update();
-
-        updateStatus();
-
-        // Simulation nach 365 Tagen stoppen
-        if(time >= 365){
+        if(time > 365){
             clearInterval(interval);
         }
 
     }, 200);
 }
 
-function updateStatus(){
+function updateEarthColor(){
 
-    let statusText = `
-    🌡 Temperatur: ${temperature.toFixed(2)} °C <br>
-    🧊 Gefrorene Ozeanschicht: ${oceanFrozen.toFixed(1)} m <br>
-    `;
-
-    if(time === 1){
-        statusText += "🌑 Die Erde wird nach 8 Minuten dunkel. Gravitation der Sonne verschwindet.";
+    // Vegetation stirbt unter 0°C langsam ab
+    if(temperature > 0){
+        earth.material.color.set(0x2e8b57); // grün
+    }
+    else if(temperature > -20){
+        earth.material.color.set(0x8b4513); // braun
+    }
+    else if(temperature > -50){
+        earth.material.color.set(0xaaaaaa); // grau
+    }
+    else{
+        earth.material.color.set(0xffffff); // komplett vereist
     }
 
-    if(biosphereCollapse){
-        statusText += "<br>🌿 Die meisten Pflanzen und Tiere sind ausgestorben.";
-    }
-
-    if(temperature < -50){
-        statusText += "<br>❄️ Atmosphäre beginnt zu kondensieren.";
-    }
-
-    if(temperature < -120){
-        statusText += "<br>🌬 Stickstoff beginnt zu verflüssigen.";
-    }
-
-    document.getElementById("status").innerHTML = statusText;
 }
 
-</script>
+function animate(){
+    requestAnimationFrame(animate);
+    earth.rotation.y += 0.002;
+    controls.update();
+    renderer.render(scene, camera);
+}
+animate();
 
+</script>
 </body>
 </html>
