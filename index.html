@@ -2,121 +2,131 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Klimasimulation stabil</title>
+<title>Klimasimulation lauffähig</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { font-family:Arial; background:black; color:white; margin:0; padding:0; display:flex; flex-direction:column; align-items:center; }
 #controls { margin:10px; }
-button { margin:3px; padding:5px 10px; background:orange; border:none; border-radius:5px; }
-#canvas { background:black; display:block; margin-top:10px; }
+button { margin:3px; padding:5px 10px; background:orange; border:none; border-radius:5px; cursor:pointer; }
+#canvas { background:black; display:block; margin-top:10px; border:1px solid white; }
+#chart { border:1px solid white; margin-top:10px; }
 </style>
 </head>
 <body>
-<h2>🌍 Klimasimulation – stabile Version</h2>
+<h2>🌍 Klimasimulation – lauffähig</h2>
 <div id="controls">
-<button onclick="running=true">Start</button>
-<button onclick="running=false">Pause</button>
+<button onclick="startSim()">Start</button>
+<button onclick="pauseSim()">Pause</button>
 <button onclick="resetSim()">Reset</button>
 <button onclick="exportCSV()">CSV Export</button>
 </div>
-<canvas id="canvas" width="600" height="300"></canvas>
+<canvas id="canvas" width="600" height="150"></canvas>
 <canvas id="chart" width="600" height="200"></canvas>
 
 <script>
-const ZONES=36;
-let zones=[];
-let day=0;
-let running=false;
-let history=[];
+const ZONES = 36;
+let zones = [];
+let day = 0;
+let running = false;
+let history = [];
 
+// --- Simulation zurücksetzen ---
 function resetSim(){
-    zones=[];
-    day=0;
-    history=[];
+    zones = [];
+    day = 0;
+    history = [];
     for(let i=0;i<ZONES;i++){
-        let lat=Math.abs(i/(ZONES-1)-0.5)*2;
+        let lat = Math.abs(i/(ZONES-1)-0.5)*2;
         zones.push({
             temp: 288 - lat*40,
-            vegetation:1-lat*0.5,
-            ice:0
+            vegetation: 1 - lat*0.5,
+            ice: 0
         });
     }
     drawCanvas();
-    updateChart();
+    updateChart(true);
 }
 resetSim();
 
-// --- Simulation Schritt ---
-function stepSimulation(){
-    let newTemps=[];
-    for(let i=0;i<ZONES;i++){
-        let z=zones[i];
-        let dT=-0.1; // konstante Abkühlung
-        let diffusion=0;
-        if(i>0) diffusion +=0.05*(zones[i-1].temp - z.temp);
-        if(i<ZONES-1) diffusion +=0.05*(zones[i+1].temp - z.temp);
-        newTemps[i]=z.temp + dT + diffusion;
-    }
-    for(let i=0;i<ZONES;i++){
-        let z=zones[i];
-        z.temp=newTemps[i];
-        if(z.temp<273){ z.ice = Math.min(1, z.ice+0.02); }
-        if(z.temp<275){ z.vegetation = Math.max(0, z.vegetation-0.02); }
-    }
-}
+// --- Canvas zeichnen ---
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
 
-// --- Canvas Zeichnen ---
-let canvas=document.getElementById("canvas");
-let ctx=canvas.getContext("2d");
 function drawCanvas(){
-    let w=canvas.width;
-    let h=canvas.height;
+    let w = canvas.width;
+    let h = canvas.height;
     ctx.clearRect(0,0,w,h);
     for(let i=0;i<ZONES;i++){
-        let z=zones[i];
+        let z = zones[i];
         let color;
-        if(z.vegetation>0.4) color="green";
-        else if(z.ice>0.3) color="white";
-        else color="brown";
-        ctx.fillStyle=color;
+        if(z.vegetation > 0.4) color = "green";
+        else if(z.ice > 0.3) color = "white";
+        else color = "brown";
+        ctx.fillStyle = color;
         ctx.fillRect(i*(w/ZONES),0,w/ZONES,h);
     }
 }
 
+// --- Simulation Schritt ---
+function stepSimulation(){
+    let newTemps = [];
+    for(let i=0;i<ZONES;i++){
+        let z = zones[i];
+        let dT = -0.05; // konstante Abkühlung
+        let diffusion = 0;
+        if(i>0) diffusion += 0.02*(zones[i-1].temp - z.temp);
+        if(i<ZONES-1) diffusion += 0.02*(zones[i+1].temp - z.temp);
+        newTemps[i] = z.temp + dT + diffusion;
+    }
+    for(let i=0;i<ZONES;i++){
+        let z = zones[i];
+        z.temp = newTemps[i];
+        if(z.temp < 273) z.ice = Math.min(1, z.ice + 0.02);
+        if(z.temp < 275) z.vegetation = Math.max(0, z.vegetation - 0.02);
+    }
+}
+
 // --- Chart ---
-let chartCanvas=document.getElementById("chart");
-let chart=new Chart(chartCanvas,{
+let chartCanvas = document.getElementById("chart");
+let chart = new Chart(chartCanvas,{
     type:'line',
     data:{labels:[], datasets:[{label:'Globale Mitteltemperatur °C', data:[], borderColor:'red', fill:false}]},
     options:{animation:false, scales:{y:{min:-50,max:30}}}
 });
-function updateChart(){
-    let meanTemp=zones.reduce((a,b)=>a+b.temp,0)/ZONES-273;
-    chart.data.labels.push(day.toFixed(1));
-    chart.data.datasets[0].data.push(meanTemp);
-    chart.update();
-    history.push({day,meanTemp});
+
+function updateChart(force=false){
+    let meanTemp = zones.reduce((a,b)=>a+b.temp,0)/ZONES - 273;
+    if(force || Math.floor(day*10)%5===0){
+        chart.data.labels.push(day.toFixed(1));
+        chart.data.datasets[0].data.push(meanTemp);
+        chart.update();
+        history.push({day, meanTemp});
+    }
 }
 
 // --- CSV Export ---
 function exportCSV(){
     let csv="Tag,Temperatur\n";
-    history.forEach(r=>{ csv+=r.day+","+r.meanTemp+"\n"; });
-    let blob=new Blob([csv],{type:"text/csv"});
-    let a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
+    history.forEach(r=>{ csv += r.day + "," + r.meanTemp + "\n"; });
+    let blob = new Blob([csv],{type:"text/csv"});
+    let a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
     a.download="klimasimulation.csv";
     a.click();
 }
+
+// --- Buttons ---
+function startSim(){ running = true; }
+function pauseSim(){ running = false; }
 
 // --- Animation Loop ---
 function animate(){
     requestAnimationFrame(animate);
     if(running){
-        day+=0.2;
+        day += 0.2;
         stepSimulation();
         drawCanvas();
-        if(Math.floor(day*10)%5===0) updateChart();
+        updateChart();
     }
 }
 animate();
