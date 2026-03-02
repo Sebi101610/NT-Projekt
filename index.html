@@ -2,26 +2,26 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Klimasimulation lauffähig</title>
+<title>Klimasimulation ohne weiße Rechtecke</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 body { font-family:Arial; background:black; color:white; margin:0; padding:0; display:flex; flex-direction:column; align-items:center; }
 #controls { margin:10px; }
 button { margin:3px; padding:5px 10px; background:orange; border:none; border-radius:5px; cursor:pointer; }
-#canvas { background:black; display:block; margin-top:10px; border:1px solid white; }
-#chart { border:1px solid white; margin-top:10px; }
+#zoneCanvas { background:black; display:block; margin-top:10px; border:1px solid white; }
+#chartCanvas { margin-top:10px; border:1px solid white; background:black; }
 </style>
 </head>
 <body>
-<h2>🌍 Klimasimulation – lauffähig</h2>
+<h2>🌍 Klimasimulation stabil</h2>
 <div id="controls">
 <button onclick="startSim()">Start</button>
 <button onclick="pauseSim()">Pause</button>
 <button onclick="resetSim()">Reset</button>
 <button onclick="exportCSV()">CSV Export</button>
 </div>
-<canvas id="canvas" width="600" height="150"></canvas>
-<canvas id="chart" width="600" height="200"></canvas>
+<canvas id="zoneCanvas" width="600" height="150"></canvas>
+<canvas id="chartCanvas" width="600" height="200"></canvas>
 
 <script>
 const ZONES = 36;
@@ -43,19 +43,20 @@ function resetSim(){
             ice: 0
         });
     }
-    drawCanvas();
+    drawZones();
     updateChart(true);
 }
 resetSim();
 
-// --- Canvas zeichnen ---
-let canvas = document.getElementById("canvas");
-let ctx = canvas.getContext("2d");
+// --- Zones Canvas ---
+let zoneCanvas = document.getElementById("zoneCanvas");
+let ctx = zoneCanvas.getContext("2d");
 
-function drawCanvas(){
-    let w = canvas.width;
-    let h = canvas.height;
-    ctx.clearRect(0,0,w,h);
+function drawZones(){
+    let w = zoneCanvas.width;
+    let h = zoneCanvas.height;
+    ctx.fillStyle = "black";
+    ctx.fillRect(0,0,w,h);
     for(let i=0;i<ZONES;i++){
         let z = zones[i];
         let color;
@@ -72,7 +73,7 @@ function stepSimulation(){
     let newTemps = [];
     for(let i=0;i<ZONES;i++){
         let z = zones[i];
-        let dT = -0.05; // konstante Abkühlung
+        let dT = -0.05;
         let diffusion = 0;
         if(i>0) diffusion += 0.02*(zones[i-1].temp - z.temp);
         if(i<ZONES-1) diffusion += 0.02*(zones[i+1].temp - z.temp);
@@ -87,11 +88,11 @@ function stepSimulation(){
 }
 
 // --- Chart ---
-let chartCanvas = document.getElementById("chart");
+let chartCanvas = document.getElementById("chartCanvas");
 let chart = new Chart(chartCanvas,{
     type:'line',
     data:{labels:[], datasets:[{label:'Globale Mitteltemperatur °C', data:[], borderColor:'red', fill:false}]},
-    options:{animation:false, scales:{y:{min:-50,max:30}}}
+    options:{animation:false, scales:{y:{min:-50,max:30}}, plugins:{legend:{labels:{color:"white"}}}}
 });
 
 function updateChart(force=false){
@@ -125,7 +126,7 @@ function animate(){
     if(running){
         day += 0.2;
         stepSimulation();
-        drawCanvas();
+        drawZones();
         updateChart();
     }
 }
