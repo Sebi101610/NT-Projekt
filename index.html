@@ -1,191 +1,55 @@
 <!DOCTYPE html>
-<html lang="de">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Sonnen-Ausfall Simulation</title>
-
+<title>Globus Test</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-body { margin:0; overflow:hidden; font-family:Arial; background:black; color:white; }
-#ui {
-    position:absolute;
-    bottom:0;
-    width:100%;
-    background:rgba(0,0,0,0.8);
-    padding:10px;
-}
-#spaceAnimation {
-    position:absolute;
-    top:10px;
-    right:10px;
-    width:200px;
-    height:120px;
-    border:1px solid white;
-}
-#chartContainer {
-    position:absolute;
-    left:10px;
-    top:10px;
-    width:300px;
-    background:rgba(0,0,0,0.7);
-    padding:10px;
-}
-button { margin:5px; padding:5px 10px; }
+body { margin:0; overflow:hidden; background:black; }
 </style>
 </head>
 <body>
 
-<div id="chartContainer">
-<canvas id="tempChart"></canvas>
-</div>
-
-<canvas id="spaceAnimation"></canvas>
-
-<div id="ui">
-<button onclick="startSunLoss()">Sonne verschwindet</button>
-<button onclick="resetSimulation()">Reset</button>
-<div id="locationInfo">Klicke auf einen Ort auf dem Globus.</div>
-</div>
-
 <script>
-
-// ---------------- 3D GLOBUS ----------------
 let scene = new THREE.Scene();
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+let camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
 let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-let controls = new THREE.OrbitControls(camera, renderer.domElement);
 camera.position.z = 3;
 
-// Erde mit echter Textur
-let textureLoader = new THREE.TextureLoader();
-let earthTexture = textureLoader.load("https://threejs.org/examples/textures/earth_atmos_2048.jpg");
+// LICHT (wichtig!)
+let light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5,5,5);
+scene.add(light);
 
+// Erde (erstmal nur blau ohne Textur)
 let geometry = new THREE.SphereGeometry(1, 64, 64);
-let material = new THREE.MeshPhongMaterial({ map: earthTexture });
+let material = new THREE.MeshPhongMaterial({ color: 0x2266dd });
 let earth = new THREE.Mesh(geometry, material);
 scene.add(earth);
 
-let light = new THREE.PointLight(0xffffff, 1);
-light.position.set(5,3,5);
-scene.add(light);
+// Steuerung
+let controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-// ---------------- Simulation ----------------
-let sunGone = false;
-let day = 0;
-let selectedLocation = null;
-let baseTemperature = 15; // °C Start
-let currentTemperature = 15;
-
-function startSunLoss(){
-    sunGone = true;
-}
-
-function resetSimulation(){
-    sunGone = false;
-    day = 0;
-    currentTemperature = 15;
-    selectedLocation = null;
-    chart.data.labels = [];
-    chart.data.datasets[0].data = [];
-    chart.update();
-    document.getElementById("locationInfo").innerHTML = "Klicke auf einen Ort auf dem Globus.";
-}
-
-// ---------------- Klick auf Globus ----------------
-let raycaster = new THREE.Raycaster();
-let mouse = new THREE.Vector2();
-
-window.addEventListener("click", function(event){
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera);
-    let intersects = raycaster.intersectObject(earth);
-    if(intersects.length > 0){
-        let point = intersects[0].point;
-        selectedLocation = point;
-        document.getElementById("locationInfo").innerHTML =
-        "Ort gewählt. Simulation läuft...";
-    }
-});
-
-// ---------------- Chart ----------------
-let ctx = document.getElementById("tempChart").getContext("2d");
-let chart = new Chart(ctx,{
-    type:'line',
-    data:{
-        labels:[],
-        datasets:[{
-            label:"Temperatur (°C)",
-            data:[],
-            borderColor:"red",
-            fill:false
-        }]
-    },
-    options:{
-        animation:false,
-        scales:{y:{min:-200,max:20}}
-    }
-});
-
-// ---------------- Weltall Animation ----------------
-let spaceCanvas = document.getElementById("spaceAnimation");
-let sctx = spaceCanvas.getContext("2d");
-
-function drawSpace(){
-    sctx.fillStyle="black";
-    sctx.fillRect(0,0,200,120);
-
-    // Sterne
-    for(let i=0;i<50;i++){
-        sctx.fillStyle="white";
-        sctx.fillRect(Math.random()*200,Math.random()*120,1,1);
-    }
-
-    if(!sunGone){
-        sctx.fillStyle="yellow";
-        sctx.beginPath();
-        sctx.arc(160,60,20,0,Math.PI*2);
-        sctx.fill();
-    } else {
-        sctx.fillStyle="gray";
-        sctx.beginPath();
-        sctx.arc(160,60,5,0,Math.PI*2);
-        sctx.fill();
-    }
-}
-
-// ---------------- Animation Loop ----------------
+// Animation
 function animate(){
     requestAnimationFrame(animate);
     earth.rotation.y += 0.002;
     controls.update();
-
-    if(sunGone && selectedLocation){
-        day += 0.1;
-
-        // vereinfachte physikalische Abkühlung
-        currentTemperature -= 0.05;
-
-        chart.data.labels.push(day.toFixed(1));
-        chart.data.datasets[0].data.push(currentTemperature);
-        chart.update();
-
-        document.getElementById("locationInfo").innerHTML =
-        "Tag: "+day.toFixed(1)+" | Temperatur: "+currentTemperature.toFixed(1)+" °C";
-    }
-
-    drawSpace();
-    renderer.render(scene,camera);
+    renderer.render(scene, camera);
 }
-
 animate();
-
 </script>
+
 </body>
 </html>
