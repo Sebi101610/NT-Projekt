@@ -56,8 +56,9 @@ button{
 
 <script>
 
-// Szene
+// ---------------- Szene ----------------
 let scene=new THREE.Scene();
+
 let camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
 camera.position.z=3;
 
@@ -70,7 +71,7 @@ let controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableZoom=false;
 controls.enableDamping=true;
 
-// Erde
+// ---------------- Erde ----------------
 let loader=new THREE.TextureLoader();
 let earthTexture=loader.load("https://raw.githubusercontent.com/jeromeetienne/threex.planets/master/images/earthmap1k.jpg");
 
@@ -80,10 +81,14 @@ let earth=new THREE.Mesh(
 );
 scene.add(earth);
 
-// Marker
-let marker=null;
+// Atmosphäre
+let atmosphere=new THREE.Mesh(
+ new THREE.SphereGeometry(1.05,64,64),
+ new THREE.MeshBasicMaterial({color:0x3399ff,transparent:true,opacity:0.2})
+);
+earth.add(atmosphere);
 
-// Licht
+// ---------------- Licht ----------------
 let ambient=new THREE.AmbientLight(0xffffff,0.3);
 scene.add(ambient);
 
@@ -91,20 +96,34 @@ let sunLight=new THREE.DirectionalLight(0xffffff,1.5);
 sunLight.position.set(5,0,5);
 scene.add(sunLight);
 
-// Simulation
+// ---------------- Simulation ----------------
 let sunGone=false;
 let day=0;
 let temperature=null;
+let marker=null;
 
-// Chart
+// ---------------- Chart ----------------
 let ctx=document.getElementById("tempChart").getContext("2d");
 let chart=new Chart(ctx,{
  type:'line',
- data:{labels:[],datasets:[{label:"Temperatur °C",data:[],borderColor:"red",fill:false}]},
- options:{animation:false,scales:{y:{min:-200,max:40}}}
+ data:{
+   labels:[],
+   datasets:[{
+     label:"Temperatur °C",
+     data:[],
+     borderColor:"red",
+     fill:false
+   }]
+ },
+ options:{
+   animation:false,
+   scales:{
+     y:{min:-200,max:40}
+   }
+ }
 });
 
-// Sonne Button
+// ---------------- Sonne Button ----------------
 document.getElementById("sunBtn").onclick=function(){
  sunGone=!sunGone;
  if(sunGone){
@@ -116,26 +135,32 @@ document.getElementById("sunBtn").onclick=function(){
  }
 };
 
-// Reset
+// ---------------- Reset ----------------
 function resetSim(){
  sunGone=false;
  sunLight.intensity=1.5;
  day=0;
  temperature=null;
+
  chart.data.labels=[];
  chart.data.datasets[0].data=[];
  chart.update();
+
  document.getElementById("info").innerText="Tippe auf einen Ort auf dem Globus.";
  document.getElementById("sunBtn").innerText="☀ Sonne ausschalten";
- if(marker) scene.remove(marker);
+
+ if(marker){
+   earth.remove(marker);
+   marker=null;
+ }
 }
 
-// Raycaster
+// ---------------- Touch Auswahl ----------------
 let raycaster=new THREE.Raycaster();
 let mouse=new THREE.Vector2();
 
-// 🔥 TOUCH EVENT (wichtig für iPad!)
 renderer.domElement.addEventListener("touchstart",function(event){
+
  let touch=event.touches[0];
  let rect=renderer.domElement.getBoundingClientRect();
 
@@ -146,16 +171,24 @@ renderer.domElement.addEventListener("touchstart",function(event){
  let intersects=raycaster.intersectObject(earth);
 
  if(intersects.length>0){
-   let point=intersects[0].point;
 
-   // Marker setzen
-   if(marker) scene.remove(marker);
+   let point=intersects[0].point.clone();
+
+   // Marker entfernen
+   if(marker) earth.remove(marker);
+
+   // Marker erstellen
    marker=new THREE.Mesh(
      new THREE.SphereGeometry(0.05,16,16),
      new THREE.MeshBasicMaterial({color:0xff0000})
    );
+
+   // Position relativ zur Erde
+   earth.worldToLocal(point);
    marker.position.copy(point);
-   scene.add(marker);
+
+   // 🔥 an Erde anhängen!
+   earth.add(marker);
 
    // Temperatur je nach Breitengrad
    temperature=30 - Math.abs(point.y*40);
@@ -170,13 +203,14 @@ renderer.domElement.addEventListener("touchstart",function(event){
  }
 });
 
-// Animation
+// ---------------- Animation ----------------
 function animate(){
  requestAnimationFrame(animate);
 
  earth.rotation.y+=0.001;
 
  if(sunGone && temperature!==null){
+
    day+=0.1;
 
    if(day<7) temperature-=0.5;
@@ -196,6 +230,14 @@ function animate(){
 }
 animate();
 
+// Resize
+window.addEventListener("resize",function(){
+ camera.aspect=window.innerWidth/window.innerHeight;
+ camera.updateProjectionMatrix();
+ renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
 </script>
+
 </body>
 </html>
