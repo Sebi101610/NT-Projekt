@@ -57,49 +57,43 @@ button{
 <script>
 
 // Szene
-let scene = new THREE.Scene();
+let scene=new THREE.Scene();
+let camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+camera.position.z=3;
 
-let camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
-camera.position.z = 3;
-
-let renderer = new THREE.WebGLRenderer({antialias:true});
+let renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-let controls = new THREE.OrbitControls(camera,renderer.domElement);
+let controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.enableZoom=false;
 controls.enableDamping=true;
 
 // Erde
-let loader = new THREE.TextureLoader();
-let earthTexture = loader.load("https://raw.githubusercontent.com/jeromeetienne/threex.planets/master/images/earthmap1k.jpg");
+let loader=new THREE.TextureLoader();
+let earthTexture=loader.load("https://raw.githubusercontent.com/jeromeetienne/threex.planets/master/images/earthmap1k.jpg");
 
-let earth = new THREE.Mesh(
+let earth=new THREE.Mesh(
  new THREE.SphereGeometry(1,64,64),
  new THREE.MeshPhongMaterial({map:earthTexture})
 );
 scene.add(earth);
 
-// Atmosphäre
-let atmosphere = new THREE.Mesh(
- new THREE.SphereGeometry(1.05,64,64),
- new THREE.MeshBasicMaterial({color:0x3399ff,transparent:true,opacity:0.2})
-);
-scene.add(atmosphere);
+// Marker
+let marker=null;
 
 // Licht
-let ambient = new THREE.AmbientLight(0xffffff,0.3);
+let ambient=new THREE.AmbientLight(0xffffff,0.3);
 scene.add(ambient);
 
-let sunLight = new THREE.DirectionalLight(0xffffff,1.5);
+let sunLight=new THREE.DirectionalLight(0xffffff,1.5);
 sunLight.position.set(5,0,5);
 scene.add(sunLight);
 
 // Simulation
 let sunGone=false;
 let day=0;
-let selectedLat=null;
 let temperature=null;
 
 // Chart
@@ -128,33 +122,51 @@ function resetSim(){
  sunLight.intensity=1.5;
  day=0;
  temperature=null;
- selectedLat=null;
  chart.data.labels=[];
  chart.data.datasets[0].data=[];
  chart.update();
  document.getElementById("info").innerText="Tippe auf einen Ort auf dem Globus.";
  document.getElementById("sunBtn").innerText="☀ Sonne ausschalten";
+ if(marker) scene.remove(marker);
 }
 
-// Klick auf Globus
+// Raycaster
 let raycaster=new THREE.Raycaster();
 let mouse=new THREE.Vector2();
 
-renderer.domElement.addEventListener("click",function(event){
+// 🔥 TOUCH EVENT (wichtig für iPad!)
+renderer.domElement.addEventListener("touchstart",function(event){
+ let touch=event.touches[0];
  let rect=renderer.domElement.getBoundingClientRect();
- mouse.x=((event.clientX-rect.left)/rect.width)*2-1;
- mouse.y=-((event.clientY-rect.top)/rect.height)*2+1;
+
+ mouse.x=((touch.clientX-rect.left)/rect.width)*2-1;
+ mouse.y=-((touch.clientY-rect.top)/rect.height)*2+1;
+
  raycaster.setFromCamera(mouse,camera);
  let intersects=raycaster.intersectObject(earth);
+
  if(intersects.length>0){
    let point=intersects[0].point;
-   selectedLat=point.y; // Breitengrad simulieren
-   temperature=30 - Math.abs(selectedLat*40); // Tropen wärmer, Pole kälter
+
+   // Marker setzen
+   if(marker) scene.remove(marker);
+   marker=new THREE.Mesh(
+     new THREE.SphereGeometry(0.05,16,16),
+     new THREE.MeshBasicMaterial({color:0xff0000})
+   );
+   marker.position.copy(point);
+   scene.add(marker);
+
+   // Temperatur je nach Breitengrad
+   temperature=30 - Math.abs(point.y*40);
    day=0;
+
    chart.data.labels=[];
    chart.data.datasets[0].data=[];
    chart.update();
-   document.getElementById("info").innerText="Ort gewählt. Starttemperatur: "+temperature.toFixed(1)+" °C";
+
+   document.getElementById("info").innerText=
+   "Ort gewählt. Starttemperatur: "+temperature.toFixed(1)+" °C";
  }
 });
 
@@ -163,12 +175,10 @@ function animate(){
  requestAnimationFrame(animate);
 
  earth.rotation.y+=0.001;
- atmosphere.rotation.y+=0.001;
 
- if(sunGone && selectedLat!==null){
+ if(sunGone && temperature!==null){
    day+=0.1;
 
-   // Realistischere Abkühlung
    if(day<7) temperature-=0.5;
    else if(day<30) temperature-=0.2;
    else temperature-=0.05;
@@ -177,14 +187,8 @@ function animate(){
    chart.data.datasets[0].data.push(temperature);
    chart.update();
 
-   let state="";
-   if(day<7) state="Pflanzen sterben langsam.";
-   else if(day<30) state="Gewässer beginnen zu frieren.";
-   else if(day<180) state="Großteil des Lebens verschwunden.";
-   else state="Ozeane gefroren, extreme Kälte.";
-
    document.getElementById("info").innerText=
-   "Tag "+day.toFixed(1)+" | "+temperature.toFixed(1)+" °C | "+state;
+   "Tag "+day.toFixed(1)+" | "+temperature.toFixed(1)+" °C";
  }
 
  controls.update();
@@ -192,12 +196,6 @@ function animate(){
 }
 animate();
 
-window.addEventListener("resize",function(){
- camera.aspect=window.innerWidth/window.innerHeight;
- camera.updateProjectionMatrix();
- renderer.setSize(window.innerWidth,window.innerHeight);
-});
 </script>
-
 </body>
 </html>
