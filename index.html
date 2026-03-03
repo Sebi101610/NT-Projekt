@@ -2,30 +2,16 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sonnen Simulation</title>
+<title>Realistische Erde</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <style>
-body { margin:0; overflow:hidden; background:black; color:white; font-family:Arial; }
-#ui {
-  position:absolute;
-  bottom:10px;
-  left:10px;
-}
-button {
-  padding:6px 12px;
-  margin:5px;
-}
+body { margin:0; overflow:hidden; background:black; }
 </style>
 </head>
 <body>
-
-<div id="ui">
-<button onclick="toggleSun()">☀ Sonne verschwinden lassen</button>
-<button onclick="resetSim()">Reset</button>
-</div>
 
 <script>
 
@@ -41,48 +27,68 @@ let camera = new THREE.PerspectiveCamera(
 );
 camera.position.z = 3;
 
-// Renderer
+// Renderer (höhere Qualität!)
 let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
 // Steuerung
 let controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
 
-// 🌍 Erde mit echter Textur
-let textureLoader = new THREE.TextureLoader();
+// 🌍 Bessere Erdtextur
+let loader = new THREE.TextureLoader();
 
-let earthTexture = textureLoader.load(
-  "https://threejs.org/examples/textures/earth_atmos_2048.jpg"
+let earthTexture = loader.load(
+  "https://raw.githubusercontent.com/jeromeetienne/threex.planets/master/images/earthmap1k.jpg",
+  function(texture){
+    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+  }
 );
 
-let geometry = new THREE.SphereGeometry(1, 64, 64);
-let material = new THREE.MeshPhongMaterial({
+let earthGeometry = new THREE.SphereGeometry(1, 128, 128);
+let earthMaterial = new THREE.MeshPhongMaterial({
   map: earthTexture
 });
-let earth = new THREE.Mesh(geometry, material);
+let earth = new THREE.Mesh(earthGeometry, earthMaterial);
 scene.add(earth);
 
-// ☀ Sonne (Lichtquelle)
-let sunLight = new THREE.PointLight(0xffffff, 1.5, 100);
+// Atmosphäre Glow
+let atmosphereGeometry = new THREE.SphereGeometry(1.05, 128, 128);
+let atmosphereMaterial = new THREE.MeshBasicMaterial({
+  color: 0x3399ff,
+  transparent: true,
+  opacity: 0.2
+});
+let atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+scene.add(atmosphere);
+
+// Licht
+let ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+scene.add(ambientLight);
+
+let sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
 sunLight.position.set(5, 0, 5);
 scene.add(sunLight);
 
-// Sichtbare Sonne als Kugel
-let sunGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+// Sichtbare Sonne
+let sunGeometry = new THREE.SphereGeometry(0.3, 32, 32);
 let sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 let sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-sunMesh.position.copy(sunLight.position);
+sunMesh.position.set(5, 0, 5);
 scene.add(sunMesh);
 
-// 🌌 Sterne Hintergrund
+// Sterne
 let starGeometry = new THREE.BufferGeometry();
 let starVertices = [];
-for(let i=0;i<1000;i++){
+for(let i=0;i<2000;i++){
   starVertices.push(
-    THREE.MathUtils.randFloatSpread(200),
-    THREE.MathUtils.randFloatSpread(200),
-    THREE.MathUtils.randFloatSpread(200)
+    THREE.MathUtils.randFloatSpread(300),
+    THREE.MathUtils.randFloatSpread(300),
+    THREE.MathUtils.randFloatSpread(300)
   );
 }
 starGeometry.setAttribute(
@@ -93,31 +99,28 @@ let starMaterial = new THREE.PointsMaterial({color:0xffffff});
 let stars = new THREE.Points(starGeometry, starMaterial);
 scene.add(stars);
 
-// Simulation
+// Sonne Button
 let sunGone = false;
 
-function toggleSun(){
-  sunGone = !sunGone;
-  if(sunGone){
-    sunLight.intensity = 0;
-    sunMesh.visible = false;
-  } else {
-    sunLight.intensity = 1.5;
-    sunMesh.visible = true;
+window.addEventListener("keydown", function(e){
+  if(e.key === "s"){
+    sunGone = !sunGone;
+    if(sunGone){
+      sunLight.intensity = 0;
+      sunMesh.visible = false;
+    } else {
+      sunLight.intensity = 1.5;
+      sunMesh.visible = true;
+    }
   }
-}
-
-function resetSim(){
-  sunGone = false;
-  sunLight.intensity = 1.5;
-  sunMesh.visible = true;
-}
+});
 
 // Animation
 function animate(){
   requestAnimationFrame(animate);
 
-  earth.rotation.y += 0.002;
+  earth.rotation.y += 0.0015;
+  atmosphere.rotation.y += 0.0015;
 
   controls.update();
   renderer.render(scene, camera);
@@ -132,6 +135,5 @@ window.addEventListener("resize", function(){
 });
 
 </script>
-
 </body>
 </html>
