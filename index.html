@@ -17,38 +17,30 @@ font-family:Arial;
 overflow:hidden;
 }
 
-/* Globus */
-
 #globe{
 position:absolute;
 width:100%;
 height:100%;
 }
 
-/* Graph */
-
 #chartBox{
 position:absolute;
 top:10px;
 left:10px;
-width:300px;
+width:320px;
 height:200px;
 background:#000c;
 padding:10px;
 border-radius:10px;
 }
 
-/* Sonnensystem */
-
 #space{
 position:absolute;
 top:10px;
 right:10px;
-width:320px;
-height:220px;
+width:360px;
+height:240px;
 }
-
-/* Buttons */
 
 #controls{
 position:absolute;
@@ -67,8 +59,6 @@ background:#1e88e5;
 color:white;
 }
 
-/* Temperatur */
-
 #tempBox{
 position:absolute;
 bottom:80px;
@@ -77,6 +67,7 @@ transform:translateX(-50%);
 background:#000a;
 padding:10px;
 border-radius:8px;
+font-size:18px;
 }
 
 </style>
@@ -92,9 +83,7 @@ border-radius:8px;
 
 <canvas id="space"></canvas>
 
-<div id="tempBox">
-Temperatur: –
-</div>
+<div id="tempBox">Temperatur –</div>
 
 <div id="controls">
 <button onclick="startSimulation()">Simulation starten</button>
@@ -107,61 +96,52 @@ Temperatur: –
 GLOBUS
 ----------------------------- */
 
-let scene,camera,renderer,earth,marker;
-let temperature=15;
-let simulation=false;
-let selectedLat=0;
+let scene = new THREE.Scene();
 
-const container=document.getElementById("globe");
-
-scene=new THREE.Scene();
-
-camera=new THREE.PerspectiveCamera(
-60,
+let camera = new THREE.PerspectiveCamera(
+50,
 window.innerWidth/window.innerHeight,
 0.1,
 1000
 );
 
-camera.position.set(0,0,3);
+camera.position.z = 2;
 
-renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
+let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth,window.innerHeight);
 
-container.appendChild(renderer.domElement);
+document.getElementById("globe").appendChild(renderer.domElement);
 
-/* Licht */
+scene.add(new THREE.AmbientLight(0x888888));
 
-scene.add(new THREE.AmbientLight(0x666666));
-
-const light=new THREE.DirectionalLight(0xffffff,1);
+let light = new THREE.DirectionalLight(0xffffff,1.2);
 light.position.set(5,3,5);
 scene.add(light);
 
-/* Erde */
+/* hochauflösende Erde */
 
-const loader=new THREE.TextureLoader();
+let loader = new THREE.TextureLoader();
 
-const texture=loader.load(
-"https://upload.wikimedia.org/wikipedia/commons/2/2c/Blue_Marble_2002.png"
+let earthTexture = loader.load(
+"https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74192/world.topo.bathy.200401.3x5400x2700.jpg"
 );
 
-earth=new THREE.Mesh(
+let earth = new THREE.Mesh(
 new THREE.SphereGeometry(1,128,128),
-new THREE.MeshPhongMaterial({map:texture})
+new THREE.MeshPhongMaterial({map:earthTexture})
 );
 
 scene.add(earth);
 
 /* Marker */
 
-marker=new THREE.Mesh(
+let marker = new THREE.Mesh(
 new THREE.SphereGeometry(0.03,16,16),
 new THREE.MeshBasicMaterial({color:0xff0000})
 );
 
-scene.add(marker);
+earth.add(marker);
 
 /* Rotation */
 
@@ -188,21 +168,25 @@ prevY=e.clientY;
 
 renderer.domElement.addEventListener("pointerup",()=>dragging=false);
 
-/* Klick */
+/* Klick auf Erde */
+
+let selectedLat=0;
+let temperature=15;
+let simulation=false;
 
 renderer.domElement.addEventListener("click",event=>{
 
-const rect=renderer.domElement.getBoundingClientRect();
+let rect=renderer.domElement.getBoundingClientRect();
 
-const mouse=new THREE.Vector2(
+let mouse=new THREE.Vector2(
 ((event.clientX-rect.left)/rect.width)*2-1,
 -((event.clientY-rect.top)/rect.height)*2+1
 );
 
-const raycaster=new THREE.Raycaster();
-raycaster.setFromCamera(mouse,camera);
+let ray=new THREE.Raycaster();
+ray.setFromCamera(mouse,camera);
 
-const hit=raycaster.intersectObject(earth);
+let hit=ray.intersectObject(earth);
 
 if(hit.length){
 
@@ -221,11 +205,8 @@ updateTemp();
 });
 
 function animate(){
-
 requestAnimationFrame(animate);
-
 renderer.render(scene,camera);
-
 }
 
 animate();
@@ -260,9 +241,7 @@ updateGraph();
 GRAPH
 ----------------------------- */
 
-let chart;
-
-chart=new Chart(
+let chart=new Chart(
 document.getElementById("chart"),
 {
 type:"line",
@@ -291,36 +270,48 @@ chart.update();
 SONNENSYSTEM
 ----------------------------- */
 
-const space=document.getElementById("space");
-const ctx=space.getContext("2d");
+let canvas=document.getElementById("space");
+let ctx=canvas.getContext("2d");
 
-space.width=320;
-space.height=220;
+canvas.width=360;
+canvas.height=240;
 
 let sunAlive=true;
 
 let planets=[
-{r:20,a:0,vx:0,vy:0,color:"gray"},
-{r:35,a:0,vx:0,vy:0,color:"orange"},
-{r:50,a:0,vx:0,vy:0,color:"blue"},
-{r:70,a:0,vx:0,vy:0,color:"red"}
+{r:20,a:0,s:0.05,c:"#aaa"},
+{r:35,a:0,s:0.04,c:"#ffcc66"},
+{r:50,a:0,s:0.03,c:"#00aaff"},
+{r:70,a:0,s:0.025,c:"#ff5533"},
+{r:100,a:0,s:0.015,c:"#e2c290"},
+{r:130,a:0,s:0.012,c:"#f0d28a"},
+{r:160,a:0,s:0.01,c:"#7ec8e3"},
+{r:190,a:0,s:0.009,c:"#4169e1"}
 ];
 
 function drawSpace(){
 
 ctx.fillStyle="black";
-ctx.fillRect(0,0,320,220);
-
-/* Sonne */
+ctx.fillRect(0,0,360,240);
 
 if(sunAlive){
 
 ctx.fillStyle="yellow";
 ctx.beginPath();
-ctx.arc(160,110,12,0,Math.PI*2);
+ctx.arc(180,120,14,0,Math.PI*2);
 ctx.fill();
 
 }
+
+/* Umlaufbahnen */
+
+ctx.strokeStyle="#333";
+
+planets.forEach(p=>{
+ctx.beginPath();
+ctx.arc(180,120,p.r,0,Math.PI*2);
+ctx.stroke();
+});
 
 /* Planeten */
 
@@ -328,13 +319,13 @@ planets.forEach(p=>{
 
 if(sunAlive){
 
-p.a+=0.01;
+p.a+=p.s;
 
-p.x=160+Math.cos(p.a)*p.r;
-p.y=110+Math.sin(p.a)*p.r;
+p.x=180+Math.cos(p.a)*p.r;
+p.y=120+Math.sin(p.a)*p.r;
 
-p.vx=Math.cos(p.a+Math.PI/2)*0.6;
-p.vy=Math.sin(p.a+Math.PI/2)*0.6;
+p.vx=Math.cos(p.a+Math.PI/2)*0.7;
+p.vy=Math.sin(p.a+Math.PI/2)*0.7;
 
 }else{
 
@@ -343,7 +334,7 @@ p.y+=p.vy;
 
 }
 
-ctx.fillStyle=p.color;
+ctx.fillStyle=p.c;
 
 ctx.beginPath();
 ctx.arc(p.x,p.y,4,0,Math.PI*2);
