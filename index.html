@@ -24,31 +24,29 @@ button{padding:10px 20px;font-size:16px;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
-/* ---------------- Globe ---------------- */
 let scene=new THREE.Scene();
 let camera=new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,0.1,1000);
 camera.position.z=3;
+
 let renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* Licht */
 scene.add(new THREE.AmbientLight(0x888888));
 let light=new THREE.PointLight(0xffffff,1);
 light.position.set(5,3,5);
 scene.add(light);
 
-/* Hochauflösende Satelliten-Textur (NASA) */
+/* Verwendung einer funktionierenden, CORS-freien Erdtextur */
 let loader=new THREE.TextureLoader();
-let earthTexture=loader.load("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/0/0/0.png"); // Beispiel Textur
+let earthTexture=loader.load("https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg");
 let earth=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),new THREE.MeshPhongMaterial({map:earthTexture}));
 scene.add(earth);
 
 /* Marker */
 let marker=new THREE.Mesh(new THREE.SphereGeometry(0.02,16,16),new THREE.MeshBasicMaterial({color:"red"}));
-earth.add(marker); // als Kind → dreht mit
+earth.add(marker);
 
-/* Globus drehen */
 let dragging=false,prevX,prevY;
 renderer.domElement.addEventListener("pointerdown",e=>{dragging=true;prevX=e.clientX;prevY=e.clientY;});
 renderer.domElement.addEventListener("pointermove",e=>{
@@ -59,11 +57,10 @@ prevX=e.clientX; prevY=e.clientY;
 });
 renderer.domElement.addEventListener("pointerup",()=>dragging=false);
 
-/* Klick Marker mehrfach setzen */
+/* Marker setzen */
 let raycaster=new THREE.Raycaster();
 let mouse=new THREE.Vector2();
 let selectedLat=0;
-let selectedLon=0;
 let temp=15;
 let simulationRunning=false;
 
@@ -76,45 +73,34 @@ if(hits.length>0){
 let p=hits[0].point.clone().normalize();
 marker.position.copy(p.multiplyScalar(1.01));
 selectedLat=Math.asin(p.y)*180/Math.PI;
-selectedLon=Math.atan2(p.x,p.z)*180/Math.PI;
 document.getElementById("lat").innerText=selectedLat.toFixed(1);
-// Temperatur abhängig vom Breitengrad und Simulation
 temp=15-0.2*Math.abs(selectedLat);
 document.getElementById("temp").innerText=temp.toFixed(1);
 }
 });
 
-/* ---------------- Graph ---------------- */
+/* Graph */
 let gCanvas=document.getElementById("graph");
 let gCtx=gCanvas.getContext("2d");
 let data=[];
 
 function drawGraph(){
 gCtx.clearRect(0,0,300,150);
-// Achsen
 gCtx.strokeStyle="white";
 gCtx.beginPath();
 gCtx.moveTo(30,0); gCtx.lineTo(30,150); gCtx.stroke();
 gCtx.beginPath();
 gCtx.moveTo(30,149); gCtx.lineTo(300,149); gCtx.stroke();
-// Skala Y
-for(let i=0;i<=5;i++){
-let y=30+i*24;
-gCtx.fillStyle="white";
-gCtx.fillText((40-i*10)+"°C",0,y);
-}
-// Graph
-gCtx.strokeStyle="red";
-gCtx.beginPath();
+for(let i=0;i<=5;i++){let y=30+i*24; gCtx.fillStyle="white"; gCtx.fillText((40-i*10)+"°C",0,y);}
+gCtx.strokeStyle="red"; gCtx.beginPath();
 for(let i=0;i<data.length;i++){
-let x=30+i*2;
-let y=150-data[i]*3;
+let x=30+i*2; let y=150-data[i]*3;
 if(i==0) gCtx.moveTo(x,y); else gCtx.lineTo(x,y);
 }
 gCtx.stroke();
 }
 
-/* ---------------- Weltraum ---------------- */
+/* Weltraum */
 let spaceCanvas=document.getElementById("space");
 let sCtx=spaceCanvas.getContext("2d");
 let sunAlive=true;
@@ -143,25 +129,23 @@ requestAnimationFrame(drawSpace);
 }
 drawSpace();
 
-/* ---------------- Simulation ---------------- */
+/* Simulation */
 function startSimulation(){simulationRunning=true; setTimeout(()=>{sunAlive=false;},2000);}
 function resetSimulation(){simulationRunning=false; temp=15; data=[]; document.getElementById("temp").innerText=temp; sunAlive=true; planets.forEach(p=>{p.a=0;p.vx=0;p.vy=0;});}
 
-/* ---------------- Animation ---------------- */
+/* Animation */
 function animate(){
 requestAnimationFrame(animate);
 earth.rotation.y+=0.0005;
-
 if(simulationRunning){
 temp-=0.02;
 document.getElementById("temp").innerText=temp.toFixed(1);
-data.push(temp);
-if(data.length>130) data.shift();
+data.push(temp); if(data.length>130) data.shift();
 drawGraph();
 }
-
 renderer.render(scene,camera);
 }
+
 animate();
 
 /* Resize */
