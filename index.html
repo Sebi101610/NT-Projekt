@@ -12,24 +12,18 @@
 body{
 margin:0;
 background:black;
+color:white;
 font-family:Arial;
 overflow:hidden;
-color:white;
 }
-
-/* Globus */
 
 #globe{
 position:absolute;
-top:0;
-left:0;
 width:100%;
 height:100%;
 }
 
-/* Graph */
-
-#chartContainer{
+#chartBox{
 position:absolute;
 top:10px;
 left:10px;
@@ -40,18 +34,13 @@ padding:10px;
 border-radius:10px;
 }
 
-/* Weltraum */
-
 #space{
 position:absolute;
 top:10px;
 right:10px;
 width:320px;
-height:200px;
-border-radius:10px;
+height:220px;
 }
-
-/* Buttons */
 
 #controls{
 position:absolute;
@@ -61,18 +50,24 @@ transform:translateX(-50%);
 }
 
 button{
-padding:12px 20px;
+padding:12px 18px;
 font-size:16px;
 margin:5px;
-border:none;
 border-radius:8px;
+border:none;
 background:#1e88e5;
 color:white;
 }
 
-button:hover{
-background:#1565c0;
-cursor:pointer;
+#tempBox{
+position:absolute;
+bottom:80px;
+left:50%;
+transform:translateX(-50%);
+font-size:18px;
+background:#000a;
+padding:10px 15px;
+border-radius:8px;
 }
 
 </style>
@@ -82,11 +77,15 @@ cursor:pointer;
 
 <div id="globe"></div>
 
-<div id="chartContainer">
+<div id="chartBox">
 <canvas id="chart"></canvas>
 </div>
 
 <canvas id="space"></canvas>
+
+<div id="tempBox">
+Ort: – | Temperatur: –
+</div>
 
 <div id="controls">
 <button onclick="startSimulation()">Simulation starten</button>
@@ -95,12 +94,14 @@ cursor:pointer;
 
 <script>
 
-/* -------------------------
+/* -----------------------------
 GLOBUS
---------------------------*/
+----------------------------- */
 
 let scene,camera,renderer,earth,marker;
-let selectedPoint=null;
+let selectedLat=0;
+let temperature=15;
+let simulation=false;
 
 const container=document.getElementById("globe");
 
@@ -116,32 +117,28 @@ window.innerWidth/window.innerHeight,
 camera.position.z=2.5;
 
 renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 
 container.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x555555));
 
 const light=new THREE.DirectionalLight(0xffffff,1);
 light.position.set(5,3,5);
 scene.add(light);
 
-scene.add(new THREE.AmbientLight(0x404040));
-
 const loader=new THREE.TextureLoader();
 
-/* 8K Erde */
-
 const earthTexture=loader.load(
-"https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/earthmap1k.jpg"
+"https://threejsfundamentals.org/threejs/resources/images/earth-day.jpg"
 );
 
-const geometry=new THREE.SphereGeometry(1,128,128);
+earth=new THREE.Mesh(
+new THREE.SphereGeometry(1,128,128),
+new THREE.MeshPhongMaterial({map:earthTexture})
+);
 
-const material=new THREE.MeshPhongMaterial({
-map:earthTexture
-});
-
-earth=new THREE.Mesh(geometry,material);
 scene.add(earth);
 
 marker=new THREE.Mesh(
@@ -151,33 +148,37 @@ new THREE.MeshBasicMaterial({color:0xff0000})
 
 scene.add(marker);
 
-/* Globus drehen */
+/* Drehung */
 
-let dragging=false;
-let lastX;
+let isDragging=false;
+let prevX,prevY;
 
-renderer.domElement.addEventListener("pointerdown",(e)=>{
-dragging=true;
-lastX=e.clientX;
+renderer.domElement.addEventListener("pointerdown",e=>{
+isDragging=true;
+prevX=e.clientX;
+prevY=e.clientY;
 });
 
-renderer.domElement.addEventListener("pointermove",(e)=>{
+renderer.domElement.addEventListener("pointermove",e=>{
 
-if(!dragging) return;
+if(!isDragging)return;
 
-let dx=e.clientX-lastX;
+let dx=e.clientX-prevX;
+let dy=e.clientY-prevY;
 
 earth.rotation.y+=dx*0.005;
+earth.rotation.x+=dy*0.005;
 
-lastX=e.clientX;
+prevX=e.clientX;
+prevY=e.clientY;
 
 });
 
-renderer.domElement.addEventListener("pointerup",()=>dragging=false);
+renderer.domElement.addEventListener("pointerup",()=>isDragging=false);
 
-/* Klick auf Globus */
+/* Klick */
 
-renderer.domElement.addEventListener("click",(event)=>{
+renderer.domElement.addEventListener("click",event=>{
 
 const rect=renderer.domElement.getBoundingClientRect();
 
@@ -191,13 +192,17 @@ raycaster.setFromCamera(mouse,camera);
 
 const hit=raycaster.intersectObject(earth);
 
-if(hit.length>0){
+if(hit.length){
 
-selectedPoint=hit[0].point;
+const p=hit[0].point.clone().normalize();
 
-marker.position.copy(
-selectedPoint.clone().normalize().multiplyScalar(1.02)
-);
+marker.position.copy(p.multiplyScalar(1.02));
+
+selectedLat=Math.asin(p.y)*180/Math.PI;
+
+temperature=30-Math.abs(selectedLat)*0.6;
+
+updateTemp();
 
 }
 
@@ -207,142 +212,159 @@ function animate(){
 
 requestAnimationFrame(animate);
 
-earth.rotation.y+=0.0005;
-
 renderer.render(scene,camera);
 
 }
 
 animate();
 
-/* -------------------------
-GRAPH
---------------------------*/
+/* -----------------------------
+TEMPERATUR
+----------------------------- */
 
-let chart;
+function updateTemp(){
 
-function startSimulation(){
-
-let labels=[];
-let temps=[];
-
-let temp=15;
-
-for(let day=0;day<50;day++){
-
-temp-=1.2;
-
-labels.push(day);
-temps.push(temp);
+document.getElementById("tempBox").innerHTML=
+"Breitengrad: "+selectedLat.toFixed(1)+"° | Temperatur: "+
+temperature.toFixed(1)+"°C";
 
 }
 
-const ctx=document.getElementById("chart");
+setInterval(()=>{
 
-if(chart) chart.destroy();
+if(simulation){
+
+temperature-=0.02;
+
+updateTemp();
+
+updateGraph();
+
+}
+
+},100);
+
+/* -----------------------------
+GRAPH
+----------------------------- */
+
+let chart;
+
+const ctx=document.getElementById("chart");
 
 chart=new Chart(ctx,{
 type:"line",
 data:{
-labels:labels,
+labels:[],
 datasets:[{
-label:"Temperatur °C",
-data:temps,
-borderColor:"cyan",
-tension:0.2
+label:"Temperatur",
+data:[],
+borderColor:"cyan"
 }]
-},
-options:{
-plugins:{
-legend:{labels:{color:"white"}}
-},
-scales:{
-x:{ticks:{color:"white"}},
-y:{ticks:{color:"white"}}
-}
 }
 });
 
+function updateGraph(){
+
+chart.data.labels.push("");
+
+chart.data.datasets[0].data.push(temperature);
+
+chart.update();
+
 }
 
-/* -------------------------
-RESET
---------------------------*/
-
-function resetSimulation(){
-location.reload();
-}
-
-/* -------------------------
+/* -----------------------------
 SONNENSYSTEM
---------------------------*/
+----------------------------- */
 
-const spaceCanvas=document.getElementById("space");
-const ctx=spaceCanvas.getContext("2d");
+const space=document.getElementById("space");
+const ctx2=space.getContext("2d");
 
-spaceCanvas.width=320;
-spaceCanvas.height=200;
+space.width=320;
+space.height=220;
 
 let angle=0;
+let sunExists=true;
+
+let planets=[
+{r:20,s:0.04,c:"gray"},
+{r:35,s:0.03,c:"orange"},
+{r:50,s:0.02,c:"blue"},
+{r:65,s:0.018,c:"red"},
+{r:90,s:0.01,c:"#d2b48c"},
+{r:120,s:0.008,c:"#f5deb3"},
+{r:150,s:0.006,c:"#87cefa"},
+{r:180,s:0.005,c:"#4169e1"}
+];
 
 function drawSpace(){
 
-ctx.fillStyle="black";
-ctx.fillRect(0,0,320,200);
+ctx2.fillStyle="black";
+ctx2.fillRect(0,0,320,220);
 
-/* Sonne */
+if(sunExists){
 
-ctx.fillStyle="yellow";
-ctx.beginPath();
-ctx.arc(160,100,15,0,Math.PI*2);
-ctx.fill();
+ctx2.fillStyle="yellow";
+ctx2.beginPath();
+ctx2.arc(160,110,12,0,Math.PI*2);
+ctx2.fill();
 
-/* Umlaufbahnen */
+}
 
-ctx.strokeStyle="#444";
+/* Orbits */
 
-ctx.beginPath();
-ctx.arc(160,100,30,0,Math.PI*2);
-ctx.stroke();
+ctx2.strokeStyle="#333";
 
-ctx.beginPath();
-ctx.arc(160,100,50,0,Math.PI*2);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.arc(160,100,70,0,Math.PI*2);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.arc(160,100,90,0,Math.PI*2);
-ctx.stroke();
+planets.forEach(p=>{
+ctx2.beginPath();
+ctx2.arc(160,110,p.r,0,Math.PI*2);
+ctx2.stroke();
+});
 
 /* Planeten */
 
-drawPlanet(30,angle,4,"gray");   // Merkur
-drawPlanet(50,angle*0.7,6,"orange"); // Venus
-drawPlanet(70,angle*0.5,6,"blue");   // Erde
-drawPlanet(90,angle*0.4,5,"red");    // Mars
+planets.forEach(p=>{
 
-angle+=0.02;
+let x=160+Math.cos(angle*p.s)*p.r;
+let y=110+Math.sin(angle*p.s)*p.r;
+
+ctx2.fillStyle=p.c;
+ctx2.beginPath();
+ctx2.arc(x,y,4,0,Math.PI*2);
+ctx2.fill();
+
+});
+
+angle+=1;
 
 requestAnimationFrame(drawSpace);
 
 }
 
-function drawPlanet(radius,angle,size,color){
+drawSpace();
 
-const x=160+Math.cos(angle)*radius;
-const y=100+Math.sin(angle)*radius;
+/* -----------------------------
+SIMULATION
+----------------------------- */
 
-ctx.fillStyle=color;
-ctx.beginPath();
-ctx.arc(x,y,size,0,Math.PI*2);
-ctx.fill();
+function startSimulation(){
+
+simulation=true;
+
+/* Sonne verschwindet */
+
+setTimeout(()=>{
+sunExists=false;
+},3000);
 
 }
 
-drawSpace();
+function resetSimulation(){
+
+location.reload();
+
+}
 
 </script>
 
