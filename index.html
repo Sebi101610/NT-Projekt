@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Sonne verschwindet Simulation</title>
+<title>Erde Simulation</title>
 
 <style>
 body{
@@ -31,9 +31,10 @@ font-size:16px;
 position:absolute;
 top:10px;
 left:10px;
-background:white;
-padding:10px;
-border-radius:10px;
+background:#000a;
+border-radius:8px;
+width:300px;
+height:150px;
 }
 
 #space{
@@ -61,198 +62,152 @@ border-radius:10px;
 <body>
 
 <canvas id="graph" width="300" height="150"></canvas>
-<canvas id="space"></canvas>
+<canvas id="space" width="320" height="220"></canvas>
 
 <div id="info">
 Temperatur: <span id="temp">15</span> °C
 </div>
 
 <div id="ui">
-<button onclick="startSimulation()">Simulation starten</button>
+<button onclick="startSimulation()">Start</button>
 <button onclick="resetSimulation()">Reset</button>
 </div>
 
+<!-- Three.js via Script-Tag -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
 <script>
+/* -------------------------------
+GLOBUS
+--------------------------------*/
 
 let scene = new THREE.Scene();
-
-let camera = new THREE.PerspectiveCamera(
-60,
-window.innerWidth/window.innerHeight,
-0.1,
-1000
-);
-
-camera.position.z = 3;   // WICHTIG → Erde sichtbar
+let camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.z = 3;
 
 let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-let controls = new THREE.OrbitControls(camera,renderer.domElement);
-controls.enableZoom=true;
-
-let light = new THREE.PointLight(0xffffff,1);
+/* Licht */
+scene.add(new THREE.AmbientLight(0x888888));
+let light = new THREE.PointLight(0xffffff, 1);
 light.position.set(5,3,5);
 scene.add(light);
 
-scene.add(new THREE.AmbientLight(0x404040));
-
-/* ERDE */
-
-let textureLoader = new THREE.TextureLoader();
-
-let earthTexture = textureLoader.load(
-"https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg"
-);
-
-let geometry = new THREE.SphereGeometry(1,64,64);
-
-let material = new THREE.MeshPhongMaterial({
-map:earthTexture
-});
-
-let earth = new THREE.Mesh(geometry,material);
+/* Erde */
+let loader = new THREE.TextureLoader();
+let earthTexture = loader.load("https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg");
+let earth = new THREE.Mesh(new THREE.SphereGeometry(1,64,64), new THREE.MeshPhongMaterial({map:earthTexture}));
 scene.add(earth);
 
-/* ROTER PUNKT */
-
-let markerGeometry = new THREE.SphereGeometry(0.02,16,16);
-let markerMaterial = new THREE.MeshBasicMaterial({color:"red"});
-let marker = new THREE.Mesh(markerGeometry,markerMaterial);
+/* Marker */
+let marker = new THREE.Mesh(new THREE.SphereGeometry(0.02,16,16), new THREE.MeshBasicMaterial({color:"red"}));
 scene.add(marker);
 
-let selectedLat = null;
-let selectedLon = null;
+/* Drehung */
+let dragging=false, prevX, prevY;
+renderer.domElement.addEventListener("pointerdown", e => {dragging=true; prevX=e.clientX; prevY=e.clientY;});
+renderer.domElement.addEventListener("pointermove", e => {
+  if(!dragging) return;
+  earth.rotation.y += (e.clientX-prevX)*0.005;
+  earth.rotation.x += (e.clientY-prevY)*0.005;
+  prevX=e.clientX; prevY=e.clientY;
+});
+renderer.domElement.addEventListener("pointerup",()=>dragging=false);
 
-/* KLICK AUF GLOBUS */
-
+/* Klick Marker */
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2();
+let temp = 15;
+let simulationRunning = false;
 
-renderer.domElement.addEventListener("click",(event)=>{
-
-mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-raycaster.setFromCamera(mouse,camera);
-
-let intersects = raycaster.intersectObject(earth);
-
-if(intersects.length > 0){
-
-let point = intersects[0].point.normalize();
-
-selectedLat = Math.asin(point.y) * 180/Math.PI;
-selectedLon = Math.atan2(point.x,point.z) * 180/Math.PI;
-
-marker.position.copy(point.multiplyScalar(1.01));
-
-updateTemperature();
-
-}
-
+renderer.domElement.addEventListener("click", e=>{
+  mouse.x = (e.clientX/window.innerWidth)*2-1;
+  mouse.y = -(e.clientY/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse,camera);
+  let hits = raycaster.intersectObject(earth);
+  if(hits.length>0){
+    let p = hits[0].point.clone().normalize();
+    marker.position.copy(p.multiplyScalar(1.01));
+  }
 });
 
-/* TEMPERATUR */
-
-let temp = 15;
-
-function updateTemperature(){
-
-if(!simulationRunning) return;
-
-temp -= 0.02;
-
-document.getElementById("temp").innerText = temp.toFixed(1);
-
-updateGraph();
-
-}
-
-/* GRAPH */
-
-let graphCanvas = document.getElementById("graph");
-let g = graphCanvas.getContext("2d");
-
+/* -------------------------------
+GRAPH
+--------------------------------*/
+let gCanvas = document.getElementById("graph");
+let gCtx = gCanvas.getContext("2d");
 let data=[];
 
 function updateGraph(){
-
-data.push(temp);
-
-g.clearRect(0,0,300,150);
-
-g.beginPath();
-g.moveTo(0,150-data[0]);
-
-for(let i=1;i<data.length;i++){
-
-g.lineTo(i*3,150-data[i]);
-
+  data.push(temp);
+  if(data.length>100) data.shift();
+  gCtx.fillStyle="#000a"; gCtx.fillRect(0,0,300,150);
+  gCtx.beginPath();
+  for(let i=0;i<data.length;i++){
+    let x=i*3;
+    let y=150-data[i];
+    if(i==0) gCtx.moveTo(x,y);
+    else gCtx.lineTo(x,y);
+  }
+  gCtx.strokeStyle="red"; gCtx.stroke();
 }
 
-g.strokeStyle="red";
-g.stroke();
+/* -------------------------------
+WELTRAUM
+--------------------------------*/
+let spaceCanvas = document.getElementById("space");
+let sCtx = spaceCanvas.getContext("2d");
+let sunAlive = true;
+let planets = [
+  {r:20,a:0,s:0.05,c:"gray",vx:0,vy:0},
+  {r:35,a:0,s:0.04,c:"orange",vx:0,vy:0},
+  {r:50,a:0,s:0.03,c:"blue",vx:0,vy:0},
+  {r:70,a:0,s:0.025,c:"red",vx:0,vy:0},
+  {r:100,a:0,s:0.015,c:"#e2c290",vx:0,vy:0},
+  {r:130,a:0,s:0.012,c:"#f0d28a",vx:0,vy:0},
+  {r:160,a:0,s:0.01,c:"#7ec8e3",vx:0,vy:0},
+  {r:190,a:0,s:0.009,c:"#4169e1",vx:0,vy:0}
+];
 
+function drawSpace(){
+  sCtx.fillStyle="black"; sCtx.fillRect(0,0,320,220);
+  if(sunAlive){ sCtx.fillStyle="yellow"; sCtx.beginPath(); sCtx.arc(160,110,14,0,Math.PI*2); sCtx.fill();}
+  sCtx.strokeStyle="#333";
+  planets.forEach(p=>{sCtx.beginPath(); sCtx.arc(160,110,p.r,0,Math.PI*2); sCtx.stroke();});
+  planets.forEach(p=>{
+    if(sunAlive){p.a+=p.s; p.x=160+Math.cos(p.a)*p.r; p.y=110+Math.sin(p.a)*p.r; p.vx=Math.cos(p.a+Math.PI/2)*0.7; p.vy=Math.sin(p.a+Math.PI/2)*0.7;}
+    else {p.x+=p.vx; p.y+=p.vy;}
+    sCtx.fillStyle=p.c; sCtx.beginPath(); sCtx.arc(p.x,p.y,4,0,Math.PI*2); sCtx.fill();
+  });
+  requestAnimationFrame(drawSpace);
 }
+drawSpace();
 
-/* SIMULATION */
+/* -------------------------------
+SIMULATION
+--------------------------------*/
+function startSimulation(){simulationRunning=true; setTimeout(()=>{sunAlive=false;},2000);}
+function resetSimulation(){simulationRunning=false; temp=15; data=[]; document.getElementById("temp").innerText=temp; gCtx.clearRect(0,0,300,150); sunAlive=true; planets.forEach(p=>{p.a=0; p.vx=0; p.vy=0;});}
 
-let simulationRunning=false;
-
-function startSimulation(){
-
-simulationRunning=true;
-
-}
-
-function resetSimulation(){
-
-simulationRunning=false;
-
-temp=15;
-data=[];
-
-document.getElementById("temp").innerText=temp;
-
-g.clearRect(0,0,300,150);
-
-}
-
-/* ANIMATION */
-
+/* -------------------------------
+ANIMATION
+--------------------------------*/
 function animate(){
-
-requestAnimationFrame(animate);
-
-earth.rotation.y += 0.0005;
-
-if(simulationRunning){
-
-updateTemperature();
-
+  requestAnimationFrame(animate);
+  earth.rotation.y += 0.0005;
+  if(simulationRunning){ temp-=0.02; document.getElementById("temp").innerText=temp.toFixed(1); updateGraph();}
+  renderer.render(scene,camera);
 }
-
-renderer.render(scene,camera);
-
-}
-
 animate();
 
 /* RESIZE */
-
-window.addEventListener("resize",()=>{
-
-camera.aspect = window.innerWidth/window.innerHeight;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth,window.innerHeight);
-
+window.addEventListener("resize", ()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
 });
-
 </script>
 
 </body>
