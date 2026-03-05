@@ -4,32 +4,34 @@
 <meta charset="UTF-8">
 <title>Sonne verschwindet Simulation</title>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-
 body{
 margin:0;
-background:black;
-color:white;
-font-family:Arial;
 overflow:hidden;
+background:black;
+font-family:Arial;
+color:white;
 }
 
-#globe{
+#ui{
 position:absolute;
-width:100%;
-height:100%;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+display:flex;
+gap:10px;
 }
 
-#chartBox{
+button{
+padding:10px 20px;
+font-size:16px;
+}
+
+#graph{
 position:absolute;
 top:10px;
 left:10px;
-width:320px;
-height:200px;
-background:#000c;
+background:white;
 padding:10px;
 border-radius:10px;
 }
@@ -38,335 +40,218 @@ border-radius:10px;
 position:absolute;
 top:10px;
 right:10px;
-width:360px;
-height:240px;
+width:320px;
+height:220px;
+background:black;
+border:1px solid white;
 }
 
-#controls{
-position:absolute;
-bottom:20px;
-left:50%;
-transform:translateX(-50%);
-}
-
-button{
-padding:12px 20px;
-font-size:16px;
-margin:5px;
-border:none;
-border-radius:8px;
-background:#1e88e5;
-color:white;
-}
-
-#tempBox{
+#info{
 position:absolute;
 bottom:80px;
 left:50%;
 transform:translateX(-50%);
-background:#000a;
-padding:10px;
-border-radius:8px;
-font-size:18px;
+background:rgba(0,0,0,0.6);
+padding:10px 20px;
+border-radius:10px;
 }
-
 </style>
 </head>
 
 <body>
 
-<div id="globe"></div>
-
-<div id="chartBox">
-<canvas id="chart"></canvas>
-</div>
-
+<canvas id="graph" width="300" height="150"></canvas>
 <canvas id="space"></canvas>
 
-<div id="tempBox">Temperatur –</div>
+<div id="info">
+Temperatur: <span id="temp">15</span> °C
+</div>
 
-<div id="controls">
+<div id="ui">
 <button onclick="startSimulation()">Simulation starten</button>
 <button onclick="resetSimulation()">Reset</button>
 </div>
 
-<script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 
-/* -----------------------------
-GLOBUS
------------------------------ */
+<script>
 
 let scene = new THREE.Scene();
 
 let camera = new THREE.PerspectiveCamera(
-50,
+60,
 window.innerWidth/window.innerHeight,
 0.1,
 1000
 );
 
-camera.position.z = 2;
+camera.position.z = 3;   // WICHTIG → Erde sichtbar
 
 let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth,window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-document.getElementById("globe").appendChild(renderer.domElement);
+let controls = new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableZoom=true;
 
-scene.add(new THREE.AmbientLight(0x888888));
-
-let light = new THREE.DirectionalLight(0xffffff,1.2);
+let light = new THREE.PointLight(0xffffff,1);
 light.position.set(5,3,5);
 scene.add(light);
 
-/* hochauflösende Erde */
+scene.add(new THREE.AmbientLight(0x404040));
 
-let loader = new THREE.TextureLoader();
+/* ERDE */
 
-let earthTexture = loader.load(
-"https://eoimages.gsfc.nasa.gov/images/imagerecords/74000/74192/world.topo.bathy.200401.3x5400x2700.jpg"
+let textureLoader = new THREE.TextureLoader();
+
+let earthTexture = textureLoader.load(
+"https://threejs.org/examples/textures/land_ocean_ice_cloud_2048.jpg"
 );
 
-let earth = new THREE.Mesh(
-new THREE.SphereGeometry(1,128,128),
-new THREE.MeshPhongMaterial({map:earthTexture})
-);
+let geometry = new THREE.SphereGeometry(1,64,64);
 
+let material = new THREE.MeshPhongMaterial({
+map:earthTexture
+});
+
+let earth = new THREE.Mesh(geometry,material);
 scene.add(earth);
 
-/* Marker */
+/* ROTER PUNKT */
 
-let marker = new THREE.Mesh(
-new THREE.SphereGeometry(0.03,16,16),
-new THREE.MeshBasicMaterial({color:0xff0000})
-);
+let markerGeometry = new THREE.SphereGeometry(0.02,16,16);
+let markerMaterial = new THREE.MeshBasicMaterial({color:"red"});
+let marker = new THREE.Mesh(markerGeometry,markerMaterial);
+scene.add(marker);
 
-earth.add(marker);
+let selectedLat = null;
+let selectedLon = null;
 
-/* Rotation */
+/* KLICK AUF GLOBUS */
 
-let dragging=false;
-let prevX,prevY;
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
 
-renderer.domElement.addEventListener("pointerdown",e=>{
-dragging=true;
-prevX=e.clientX;
-prevY=e.clientY;
-});
+renderer.domElement.addEventListener("click",(event)=>{
 
-renderer.domElement.addEventListener("pointermove",e=>{
+mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-if(!dragging)return;
+raycaster.setFromCamera(mouse,camera);
 
-earth.rotation.y+=(e.clientX-prevX)*0.005;
-earth.rotation.x+=(e.clientY-prevY)*0.005;
+let intersects = raycaster.intersectObject(earth);
 
-prevX=e.clientX;
-prevY=e.clientY;
+if(intersects.length > 0){
 
-});
+let point = intersects[0].point.normalize();
 
-renderer.domElement.addEventListener("pointerup",()=>dragging=false);
+selectedLat = Math.asin(point.y) * 180/Math.PI;
+selectedLon = Math.atan2(point.x,point.z) * 180/Math.PI;
 
-/* Klick auf Erde */
+marker.position.copy(point.multiplyScalar(1.01));
 
-let selectedLat=0;
-let temperature=15;
-let simulation=false;
-
-renderer.domElement.addEventListener("click",event=>{
-
-let rect=renderer.domElement.getBoundingClientRect();
-
-let mouse=new THREE.Vector2(
-((event.clientX-rect.left)/rect.width)*2-1,
--((event.clientY-rect.top)/rect.height)*2+1
-);
-
-let ray=new THREE.Raycaster();
-ray.setFromCamera(mouse,camera);
-
-let hit=ray.intersectObject(earth);
-
-if(hit.length){
-
-let p=hit[0].point.clone().normalize();
-
-marker.position.copy(p.multiplyScalar(1.02));
-
-selectedLat=Math.asin(p.y)*180/Math.PI;
-
-temperature=30-Math.abs(selectedLat)*0.6;
-
-updateTemp();
+updateTemperature();
 
 }
 
 });
 
-function animate(){
-requestAnimationFrame(animate);
-renderer.render(scene,camera);
-}
+/* TEMPERATUR */
 
-animate();
+let temp = 15;
 
-/* -----------------------------
-TEMPERATUR
------------------------------ */
+function updateTemperature(){
 
-function updateTemp(){
+if(!simulationRunning) return;
 
-document.getElementById("tempBox").innerHTML=
-"Breitengrad "+selectedLat.toFixed(1)+"° | "+
-temperature.toFixed(1)+" °C";
+temp -= 0.02;
 
-}
-
-setInterval(()=>{
-
-if(simulation){
-
-temperature-=0.02;
-
-updateTemp();
+document.getElementById("temp").innerText = temp.toFixed(1);
 
 updateGraph();
 
 }
 
-},100);
+/* GRAPH */
 
-/* -----------------------------
-GRAPH
------------------------------ */
+let graphCanvas = document.getElementById("graph");
+let g = graphCanvas.getContext("2d");
 
-let chart=new Chart(
-document.getElementById("chart"),
-{
-type:"line",
-data:{
-labels:[],
-datasets:[{
-label:"Temperatur",
-data:[],
-borderColor:"cyan"
-}]
-}
-}
-);
+let data=[];
 
 function updateGraph(){
 
-chart.data.labels.push("");
+data.push(temp);
 
-chart.data.datasets[0].data.push(temperature);
+g.clearRect(0,0,300,150);
 
-chart.update();
+g.beginPath();
+g.moveTo(0,150-data[0]);
 
-}
+for(let i=1;i<data.length;i++){
 
-/* -----------------------------
-SONNENSYSTEM
------------------------------ */
-
-let canvas=document.getElementById("space");
-let ctx=canvas.getContext("2d");
-
-canvas.width=360;
-canvas.height=240;
-
-let sunAlive=true;
-
-let planets=[
-{r:20,a:0,s:0.05,c:"#aaa"},
-{r:35,a:0,s:0.04,c:"#ffcc66"},
-{r:50,a:0,s:0.03,c:"#00aaff"},
-{r:70,a:0,s:0.025,c:"#ff5533"},
-{r:100,a:0,s:0.015,c:"#e2c290"},
-{r:130,a:0,s:0.012,c:"#f0d28a"},
-{r:160,a:0,s:0.01,c:"#7ec8e3"},
-{r:190,a:0,s:0.009,c:"#4169e1"}
-];
-
-function drawSpace(){
-
-ctx.fillStyle="black";
-ctx.fillRect(0,0,360,240);
-
-if(sunAlive){
-
-ctx.fillStyle="yellow";
-ctx.beginPath();
-ctx.arc(180,120,14,0,Math.PI*2);
-ctx.fill();
+g.lineTo(i*3,150-data[i]);
 
 }
 
-/* Umlaufbahnen */
-
-ctx.strokeStyle="#333";
-
-planets.forEach(p=>{
-ctx.beginPath();
-ctx.arc(180,120,p.r,0,Math.PI*2);
-ctx.stroke();
-});
-
-/* Planeten */
-
-planets.forEach(p=>{
-
-if(sunAlive){
-
-p.a+=p.s;
-
-p.x=180+Math.cos(p.a)*p.r;
-p.y=120+Math.sin(p.a)*p.r;
-
-p.vx=Math.cos(p.a+Math.PI/2)*0.7;
-p.vy=Math.sin(p.a+Math.PI/2)*0.7;
-
-}else{
-
-p.x+=p.vx;
-p.y+=p.vy;
+g.strokeStyle="red";
+g.stroke();
 
 }
 
-ctx.fillStyle=p.c;
+/* SIMULATION */
 
-ctx.beginPath();
-ctx.arc(p.x,p.y,4,0,Math.PI*2);
-ctx.fill();
-
-});
-
-requestAnimationFrame(drawSpace);
-
-}
-
-drawSpace();
-
-/* -----------------------------
-SIMULATION
------------------------------ */
+let simulationRunning=false;
 
 function startSimulation(){
 
-simulation=true;
-
-setTimeout(()=>{
-sunAlive=false;
-},3000);
+simulationRunning=true;
 
 }
 
 function resetSimulation(){
 
-location.reload();
+simulationRunning=false;
+
+temp=15;
+data=[];
+
+document.getElementById("temp").innerText=temp;
+
+g.clearRect(0,0,300,150);
 
 }
+
+/* ANIMATION */
+
+function animate(){
+
+requestAnimationFrame(animate);
+
+earth.rotation.y += 0.0005;
+
+if(simulationRunning){
+
+updateTemperature();
+
+}
+
+renderer.render(scene,camera);
+
+}
+
+animate();
+
+/* RESIZE */
+
+window.addEventListener("resize",()=>{
+
+camera.aspect = window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+});
 
 </script>
 
