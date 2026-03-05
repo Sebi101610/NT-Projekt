@@ -12,55 +12,67 @@
 body{
 margin:0;
 background:black;
-color:white;
 font-family:Arial;
+overflow:hidden;
+color:white;
 }
 
-#globeContainer{
+/* Globus */
+
+#globe{
+position:absolute;
+top:0;
+left:0;
 width:100%;
-height:60vh;
-display:block;
+height:100%;
 }
 
-#charts{
-height:30vh;
-display:flex;
-}
+/* Graph */
 
-canvas{
-flex:1;
-background:#111;
-}
-
-#ui{
+#chartContainer{
 position:absolute;
 top:10px;
 left:10px;
-z-index:10;
+width:320px;
+height:200px;
+background:#000c;
+padding:10px;
+border-radius:10px;
 }
 
-button{
-padding:10px;
-margin-right:5px;
-}
+/* Weltraum */
 
 #space{
 position:absolute;
-top:0;
-right:0;
-width:200px;
-height:120px;
-border-left:2px solid #333;
-border-bottom:2px solid #333;
+top:10px;
+right:10px;
+width:320px;
+height:200px;
+border-radius:10px;
 }
 
-#info{
+/* Buttons */
+
+#controls{
 position:absolute;
-bottom:10px;
-left:10px;
-background:#000a;
-padding:10px;
-border-radius:6px;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+}
+
+button{
+padding:12px 20px;
+font-size:16px;
+margin:5px;
+border:none;
+border-radius:8px;
+background:#1e88e5;
+color:white;
+}
+
+button:hover{
+background:#1565c0;
+cursor:pointer;
 }
 
 </style>
@@ -68,38 +80,35 @@ border-radius:6px;
 
 <body>
 
-<div id="ui">
-<button onclick="startSimulation()">Simulation starten</button>
-<button onclick="resetSimulation()">Reset</button>
+<div id="globe"></div>
+
+<div id="chartContainer">
+<canvas id="chart"></canvas>
 </div>
 
 <canvas id="space"></canvas>
 
-<div id="globeContainer"></div>
-
-<div id="charts">
-<canvas id="tempChart"></canvas>
+<div id="controls">
+<button onclick="startSimulation()">Simulation starten</button>
+<button onclick="resetSimulation()">Reset</button>
 </div>
 
-<div id="info">Klicke auf einen Ort auf der Erde</div>
-
 <script>
+
+/* -------------------------
+GLOBUS
+--------------------------*/
 
 let scene,camera,renderer,earth,marker;
 let selectedPoint=null;
 
-init();
-animate();
-
-function init(){
-
-const container=document.getElementById("globeContainer");
+const container=document.getElementById("globe");
 
 scene=new THREE.Scene();
 
 camera=new THREE.PerspectiveCamera(
 60,
-container.clientWidth/container.clientHeight,
+window.innerWidth/window.innerHeight,
 0.1,
 1000
 );
@@ -107,30 +116,32 @@ container.clientWidth/container.clientHeight,
 camera.position.z=2.5;
 
 renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(container.clientWidth,container.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth,window.innerHeight);
 
 container.appendChild(renderer.domElement);
 
-let light=new THREE.DirectionalLight(0xffffff,1);
+const light=new THREE.DirectionalLight(0xffffff,1);
 light.position.set(5,3,5);
 scene.add(light);
 
-scene.add(new THREE.AmbientLight(0x555555));
+scene.add(new THREE.AmbientLight(0x404040));
 
-let loader=new THREE.TextureLoader();
+const loader=new THREE.TextureLoader();
 
-let texture=loader.load(
-"https://threejsfundamentals.org/threejs/resources/images/earth-day.jpg"
+/* 8K Erde */
+
+const earthTexture=loader.load(
+"https://cdn.jsdelivr.net/gh/jeromeetienne/threex.planets@master/images/earthmap1k.jpg"
 );
 
-let geometry=new THREE.SphereGeometry(1,64,64);
+const geometry=new THREE.SphereGeometry(1,128,128);
 
-let material=new THREE.MeshPhongMaterial({
-map:texture
+const material=new THREE.MeshPhongMaterial({
+map:earthTexture
 });
 
 earth=new THREE.Mesh(geometry,material);
-
 scene.add(earth);
 
 marker=new THREE.Mesh(
@@ -140,21 +151,33 @@ new THREE.MeshBasicMaterial({color:0xff0000})
 
 scene.add(marker);
 
-renderer.domElement.addEventListener("click",onClick);
+/* Globus drehen */
 
-}
+let dragging=false;
+let lastX;
 
-function animate(){
+renderer.domElement.addEventListener("pointerdown",(e)=>{
+dragging=true;
+lastX=e.clientX;
+});
 
-requestAnimationFrame(animate);
+renderer.domElement.addEventListener("pointermove",(e)=>{
 
-earth.rotation.y+=0.001;
+if(!dragging) return;
 
-renderer.render(scene,camera);
+let dx=e.clientX-lastX;
 
-}
+earth.rotation.y+=dx*0.005;
 
-function onClick(event){
+lastX=e.clientX;
+
+});
+
+renderer.domElement.addEventListener("pointerup",()=>dragging=false);
+
+/* Klick auf Globus */
+
+renderer.domElement.addEventListener("click",(event)=>{
 
 const rect=renderer.domElement.getBoundingClientRect();
 
@@ -164,31 +187,41 @@ const mouse=new THREE.Vector2(
 );
 
 const raycaster=new THREE.Raycaster();
-
 raycaster.setFromCamera(mouse,camera);
 
-const intersects=raycaster.intersectObject(earth);
+const hit=raycaster.intersectObject(earth);
 
-if(intersects.length>0){
+if(hit.length>0){
 
-selectedPoint=intersects[0].point;
+selectedPoint=hit[0].point;
 
 marker.position.copy(
 selectedPoint.clone().normalize().multiplyScalar(1.02)
 );
 
-document.getElementById("info").innerHTML=
-"Ort gewählt – Simulation starten";
+}
+
+});
+
+function animate(){
+
+requestAnimationFrame(animate);
+
+earth.rotation.y+=0.0005;
+
+renderer.render(scene,camera);
 
 }
 
-}
+animate();
+
+/* -------------------------
+GRAPH
+--------------------------*/
 
 let chart;
 
 function startSimulation(){
-
-if(!selectedPoint)return;
 
 let labels=[];
 let temps=[];
@@ -197,17 +230,16 @@ let temp=15;
 
 for(let day=0;day<50;day++){
 
-temp-=1.3;
+temp-=1.2;
 
-labels.push("Tag "+day);
-
+labels.push(day);
 temps.push(temp);
 
 }
 
-const ctx=document.getElementById("tempChart").getContext("2d");
+const ctx=document.getElementById("chart");
 
-if(chart)chart.destroy();
+if(chart) chart.destroy();
 
 chart=new Chart(ctx,{
 type:"line",
@@ -216,54 +248,101 @@ labels:labels,
 datasets:[{
 label:"Temperatur °C",
 data:temps,
-borderColor:"cyan"
+borderColor:"cyan",
+tension:0.2
 }]
+},
+options:{
+plugins:{
+legend:{labels:{color:"white"}}
+},
+scales:{
+x:{ticks:{color:"white"}},
+y:{ticks:{color:"white"}}
+}
 }
 });
 
-spaceAnimation();
-
 }
+
+/* -------------------------
+RESET
+--------------------------*/
 
 function resetSimulation(){
-
 location.reload();
-
 }
 
-function spaceAnimation(){
+/* -------------------------
+SONNENSYSTEM
+--------------------------*/
 
-let canvas=document.getElementById("space");
+const spaceCanvas=document.getElementById("space");
+const ctx=spaceCanvas.getContext("2d");
 
-let ctx=canvas.getContext("2d");
+spaceCanvas.width=320;
+spaceCanvas.height=200;
 
-canvas.width=200;
-canvas.height=120;
+let angle=0;
 
-let sunX=70;
-
-setInterval(()=>{
+function drawSpace(){
 
 ctx.fillStyle="black";
-ctx.fillRect(0,0,200,120);
+ctx.fillRect(0,0,320,200);
+
+/* Sonne */
 
 ctx.fillStyle="yellow";
-
 ctx.beginPath();
-ctx.arc(sunX,60,18,0,Math.PI*2);
+ctx.arc(160,100,15,0,Math.PI*2);
 ctx.fill();
 
-ctx.fillStyle="blue";
+/* Umlaufbahnen */
+
+ctx.strokeStyle="#444";
 
 ctx.beginPath();
-ctx.arc(150,60,6,0,Math.PI*2);
-ctx.fill();
+ctx.arc(160,100,30,0,Math.PI*2);
+ctx.stroke();
 
-sunX-=1;
+ctx.beginPath();
+ctx.arc(160,100,50,0,Math.PI*2);
+ctx.stroke();
 
-},40);
+ctx.beginPath();
+ctx.arc(160,100,70,0,Math.PI*2);
+ctx.stroke();
+
+ctx.beginPath();
+ctx.arc(160,100,90,0,Math.PI*2);
+ctx.stroke();
+
+/* Planeten */
+
+drawPlanet(30,angle,4,"gray");   // Merkur
+drawPlanet(50,angle*0.7,6,"orange"); // Venus
+drawPlanet(70,angle*0.5,6,"blue");   // Erde
+drawPlanet(90,angle*0.4,5,"red");    // Mars
+
+angle+=0.02;
+
+requestAnimationFrame(drawSpace);
 
 }
+
+function drawPlanet(radius,angle,size,color){
+
+const x=160+Math.cos(angle)*radius;
+const y=100+Math.sin(angle)*radius;
+
+ctx.fillStyle=color;
+ctx.beginPath();
+ctx.arc(x,y,size,0,Math.PI*2);
+ctx.fill();
+
+}
+
+drawSpace();
 
 </script>
 
