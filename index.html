@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<title>Erde Simulation</title>
+<title>Live Erd-Simulation</title>
 <style>
 body{margin:0;overflow:hidden;background:black;font-family:Arial;color:white;}
 #ui{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;}
@@ -32,31 +32,34 @@ let renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+/* Licht */
+scene.add(new THREE.AmbientLight(0x888888));
 let light=new THREE.PointLight(0xffffff,1);
 light.position.set(5,3,5);
 scene.add(light);
-scene.add(new THREE.AmbientLight(0x444444));
 
+/* Hochauflösende Satelliten-Textur (NASA) */
 let loader=new THREE.TextureLoader();
-let earthTexture=loader.load("https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg");
+let earthTexture=loader.load("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_CityLights_2012/default/2012-01-01/GoogleMapsCompatible_Level8/0/0/0.png"); // Beispiel Textur
 let earth=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),new THREE.MeshPhongMaterial({map:earthTexture}));
 scene.add(earth);
 
-/* Marker als Kind des Globus -> bleibt auf Oberfläche */
+/* Marker */
 let marker=new THREE.Mesh(new THREE.SphereGeometry(0.02,16,16),new THREE.MeshBasicMaterial({color:"red"}));
-earth.add(marker);
+earth.add(marker); // als Kind → dreht mit
 
+/* Globus drehen */
 let dragging=false,prevX,prevY;
 renderer.domElement.addEventListener("pointerdown",e=>{dragging=true;prevX=e.clientX;prevY=e.clientY;});
 renderer.domElement.addEventListener("pointermove",e=>{
-if(!dragging)return;
+if(!dragging) return;
 earth.rotation.y+=(e.clientX-prevX)*0.005;
 earth.rotation.x+=(e.clientY-prevY)*0.005;
-prevX=e.clientX;prevY=e.clientY;
+prevX=e.clientX; prevY=e.clientY;
 });
 renderer.domElement.addEventListener("pointerup",()=>dragging=false);
 
-/* Klick Marker */
+/* Klick Marker mehrfach setzen */
 let raycaster=new THREE.Raycaster();
 let mouse=new THREE.Vector2();
 let selectedLat=0;
@@ -75,7 +78,8 @@ marker.position.copy(p.multiplyScalar(1.01));
 selectedLat=Math.asin(p.y)*180/Math.PI;
 selectedLon=Math.atan2(p.x,p.z)*180/Math.PI;
 document.getElementById("lat").innerText=selectedLat.toFixed(1);
-temp=15-0.1*Math.abs(selectedLat); // Grundtemperatur abhängig vom Breitengrad
+// Temperatur abhängig vom Breitengrad und Simulation
+temp=15-0.2*Math.abs(selectedLat);
 document.getElementById("temp").innerText=temp.toFixed(1);
 }
 });
@@ -84,20 +88,20 @@ document.getElementById("temp").innerText=temp.toFixed(1);
 let gCanvas=document.getElementById("graph");
 let gCtx=gCanvas.getContext("2d");
 let data=[];
-let time=0;
 
 function drawGraph(){
 gCtx.clearRect(0,0,300,150);
 // Achsen
 gCtx.strokeStyle="white";
 gCtx.beginPath();
-gCtx.moveTo(30,0); gCtx.lineTo(30,150); gCtx.stroke(); // Y-Achse
+gCtx.moveTo(30,0); gCtx.lineTo(30,150); gCtx.stroke();
 gCtx.beginPath();
-gCtx.moveTo(30,150-1); gCtx.lineTo(300,150-1); gCtx.stroke(); // X-Achse
+gCtx.moveTo(30,149); gCtx.lineTo(300,149); gCtx.stroke();
 // Skala Y
 for(let i=0;i<=5;i++){
 let y=30+i*24;
-gCtx.fillStyle="white"; gCtx.fillText((40-i*10)+"°C",0,y);
+gCtx.fillStyle="white";
+gCtx.fillText((40-i*10)+"°C",0,y);
 }
 // Graph
 gCtx.strokeStyle="red";
@@ -141,7 +145,7 @@ drawSpace();
 
 /* ---------------- Simulation ---------------- */
 function startSimulation(){simulationRunning=true; setTimeout(()=>{sunAlive=false;},2000);}
-function resetSimulation(){simulationRunning=false; temp=15; data=[]; time=0; document.getElementById("temp").innerText=temp; sunAlive=true; planets.forEach(p=>{p.a=0;p.vx=0;p.vy=0;});}
+function resetSimulation(){simulationRunning=false; temp=15; data=[]; document.getElementById("temp").innerText=temp; sunAlive=true; planets.forEach(p=>{p.a=0;p.vx=0;p.vy=0;});}
 
 /* ---------------- Animation ---------------- */
 function animate(){
@@ -149,10 +153,10 @@ requestAnimationFrame(animate);
 earth.rotation.y+=0.0005;
 
 if(simulationRunning){
-temp-=0.02; // Abkühlung
+temp-=0.02;
 document.getElementById("temp").innerText=temp.toFixed(1);
 data.push(temp);
-if(data.length>130)data.shift();
+if(data.length>130) data.shift();
 drawGraph();
 }
 
