@@ -24,7 +24,7 @@ scene.add(light)
 let loader = new THREE.TextureLoader()
 
 let earthTexture = loader.load(
-"https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg"
+"earth_atmos_2048.jpg"
 )
 
 let geometry = new THREE.SphereGeometry(1,128,128)
