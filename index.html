@@ -60,11 +60,9 @@ let temps=[];
 
 function drawGraph(){
   ctx.clearRect(0,0,300,150);
-  // Achsen
   ctx.strokeStyle="white";
   ctx.beginPath(); ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
-  // Linie
   ctx.beginPath();
   for(let i=0;i<temps.length;i++){
     let x = 10 + i*9;
@@ -79,7 +77,9 @@ function drawGraph(){
 function logEvent(text){const log=document.getElementById("log"); const time=new Date().toLocaleTimeString(); log.innerHTML += "["+time+"] "+text+"<br>"; log.scrollTop = log.scrollHeight;}
 
 // ===== WETTER =====
+let selectedLat=0, selectedLon=0;
 async function loadWeather(lat,lon){
+  selectedLat=lat; selectedLon=lon;
   try{
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`;
     const res = await fetch(url); const data = await res.json();
@@ -171,7 +171,7 @@ function animate(){
 
   planets.forEach(p=>{
     p.userData.angle += p.userData.speed;
-    if(!sunOn) p.userData.radius += 0.01; // Planeten driftet bei ausgeschalteter Sonne
+    if(!sunOn) p.userData.radius += 0.01; 
     p.position.x = Math.cos(p.userData.angle)*p.userData.radius;
     p.position.z = Math.sin(p.userData.angle)*p.userData.radius;
   });
@@ -190,7 +190,10 @@ function animate(){
         case 30: logEvent("Tag 30: Erde fast komplett gefroren. Gravitation kritisch verändert, menschliches Leben extrem eingeschränkt."); break;
       }
       lastDayCommented = currentDay;
-      temps.push(Math.max(0,25-currentDay*0.7));
+      // Temperatur lokal nach Marker-Lat simulieren
+      let baseTemp = 25 - currentDay*0.7;
+      let latFactor = 1 - Math.abs(selectedLat)/90; // Pol-Äquator Unterschied
+      temps.push(Math.max(0,baseTemp*latFactor));
       if(temps.length>30) temps.shift();
       drawGraph();
     }
