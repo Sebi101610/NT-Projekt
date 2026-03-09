@@ -2,16 +2,17 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Globus</title>
+<title>Earth Climate Simulation</title>
 
 <style>
-
 body{
 margin:0;
 overflow:hidden;
 background:black;
+font-family:Arial;
 }
 
+/* Temperatur */
 #tempDisplay{
 position:absolute;
 bottom:20px;
@@ -22,175 +23,76 @@ font-size:22px;
 z-index:10;
 }
 
-</style>
+/* Graph */
+#graph{
+position:absolute;
+top:20px;
+left:20px;
+width:300px;
+height:150px;
+background:rgba(0,0,0,0.6);
+border:1px solid white;
+z-index:10;
+}
 
+/* Protokoll */
+#log{
+position:absolute;
+top:190px;
+left:20px;
+width:300px;
+height:220px;
+background:rgba(0,0,0,0.6);
+border:1px solid white;
+color:white;
+font-size:14px;
+overflow-y:auto;
+padding:5px;
+z-index:10;
+}
+
+/* Sonnensystem */
+#solarSystem{
+position:absolute;
+top:20px;
+right:20px;
+width:320px;
+height:320px;
+border:1px solid white;
+}
+
+/* Buttons */
+#controls{
+position:absolute;
+bottom:20px;
+right:20px;
+z-index:10;
+}
+
+button{
+padding:10px;
+margin:5px;
+font-size:14px;
+}
+
+</style>
 </head>
 
 <body>
 
+<canvas id="graph"></canvas>
+<div id="log"></div>
+<div id="solarSystem"></div>
+
+<div id="controls">
+<button onclick="turnOffSun()">Sonne ausschalten</button>
+<button onclick="resetSimulation()">Reset</button>
+</div>
+
 <div id="tempDisplay">Temperatur: -- °C</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<script>
-
-/* SCENE */
-
-const scene = new THREE.Scene()
-
-const camera = new THREE.PerspectiveCamera(
-60,
-window.innerWidth/window.innerHeight,
-0.1,
-1000
-)
-
-camera.position.z = 3
-
-const renderer = new THREE.WebGLRenderer({antialias:true})
-renderer.setSize(window.innerWidth,window.innerHeight)
-
-document.body.appendChild(renderer.domElement)
-
-/* LICHT */
-
-const light = new THREE.DirectionalLight(0xffffff,1)
-light.position.set(5,3,5)
-
-scene.add(light)
-
-/* ERDE */
-
-const texture = new THREE.TextureLoader().load(
-"https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg"
-)
-
-const geometry = new THREE.SphereGeometry(1,64,64)
-
-const material = new THREE.MeshPhongMaterial({
-map:texture
-})
-
-const earth = new THREE.Mesh(geometry,material)
-
-scene.add(earth)
-
-/* MARKER */
-
-const markerGeo = new THREE.SphereGeometry(0.03,16,16)
-const markerMat = new THREE.MeshBasicMaterial({color:0xff0000})
-
-const marker = new THREE.Mesh(markerGeo,markerMat)
-
-earth.add(marker)
-
-marker.visible=false
-
-/* RAYCASTER */
-
-const raycaster = new THREE.Raycaster()
-const mouse = new THREE.Vector2()
-
-window.addEventListener("click",(event)=>{
-
-mouse.x = (event.clientX/window.innerWidth)*2-1
-mouse.y = -(event.clientY/window.innerHeight)*2+1
-
-raycaster.setFromCamera(mouse,camera)
-
-const hit = raycaster.intersectObject(earth)
-
-if(hit.length>0){
-
-const p = earth.worldToLocal(hit[0].point.clone())
-
-marker.position.copy(
-p.normalize().multiplyScalar(1.02)
-)
-
-marker.visible=true
-
-const lat = Math.asin(p.y)*(180/Math.PI)
-const lon = Math.atan2(p.z,p.x)*(180/Math.PI)
-
-loadWeather(lat,lon)
-
-}
-
-})
-
-/* WETTER */
-
-async function loadWeather(lat,lon){
-
-try{
-
-const url =
-`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`
-
-const res = await fetch(url)
-const data = await res.json()
-
-const temp = data.current.temperature_2m
-
-document.getElementById("tempDisplay").innerText =
-"Temperatur: "+temp+" °C"
-
-}catch(e){
-
-document.getElementById("tempDisplay").innerText =
-"Temperatur konnte nicht geladen werden"
-
-}
-
-}
-
-/* ERDDREHUNG */
-
-let dragging=false
-let px=0
-let py=0
-
-window.addEventListener("mousedown",(e)=>{
-dragging=true
-px=e.clientX
-py=e.clientY
-})
-
-window.addEventListener("mouseup",()=>{
-dragging=false
-})
-
-window.addEventListener("mousemove",(e)=>{
-
-if(!dragging) return
-
-const dx = e.clientX-px
-const dy = e.clientY-py
-
-earth.rotation.y += dx*0.005
-earth.rotation.x += dy*0.005
-
-px=e.clientX
-py=e.clientY
-
-})
-
-/* ANIMATION */
-
-function animate(){
-
-requestAnimationFrame(animate)
-
-earth.rotation.y += 0.0005
-
-renderer.render(scene,camera)
-
-}
-
-animate()
-
-</script>
+<script src="script.js"></script>
 
 </body>
 </html>
