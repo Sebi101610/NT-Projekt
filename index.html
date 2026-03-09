@@ -60,11 +60,9 @@ let temps=[];
 
 function drawGraph(){
   ctx.clearRect(0,0,300,150);
-  // Achsen
   ctx.strokeStyle="white";
   ctx.beginPath(); ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
-  // Linie
   ctx.beginPath();
   for(let i=0;i<temps.length;i++){
     let x = 10 + i*9;
@@ -145,12 +143,15 @@ const planets = planetsData.map(p=>{
 
 let sunOn=true;
 let day=0;
+let lastDayCommented=0;
 
+// ===== SONNE AUSSCHALTEN =====
 function turnOffSun(){
   if(!sunOn) return;
   sunOn=false;
   solarScene.remove(sun);
   logEvent("Sonne ausgeschaltet");
+  lastDayCommented = 0; // Reset Kommentarzähler
 }
 
 // ===== RESET =====
@@ -164,7 +165,7 @@ function animate(){
   earth.rotation.y += 0.0005;
 
   // Sonnensystem
-  day += 0.01; // Simuliert Tages-Fortschritt
+  day += 0.01; // Simulierte Tagesfortschritte
 
   planets.forEach(p=>{
     p.userData.angle += p.userData.speed;
@@ -173,11 +174,24 @@ function animate(){
     p.position.z = Math.sin(p.userData.angle)*p.userData.radius;
   });
 
-  // Log-Ereignisse nach "Tagen"
-  const simulatedDay = Math.floor(day*10);
-  if(sunOn && simulatedDay===3) logEvent("Temperaturen beginnen zu fallen");
-  if(sunOn && simulatedDay===10) logEvent("Erste Pflanzen sterben");
-  if(sunOn && simulatedDay===20) logEvent("Ozeane beginnen zu gefrieren");
+  // Tagesbasierte Kommentare nur wenn Sonne aus ist
+  if(!sunOn){
+    const currentDay = Math.floor(day);
+    if(currentDay>lastDayCommented){
+      if(currentDay === 1) logEvent("Tag 1: Temperaturen beginnen zu sinken.");
+      if(currentDay === 3) logEvent("Tag 3: Erste Pflanzen sterben.");
+      if(currentDay === 5) logEvent("Tag 5: Kleine Gewässer beginnen zu gefrieren.");
+      if(currentDay === 10) logEvent("Tag 10: Ozeane gefrieren teilweise.");
+      if(currentDay === 15) logEvent("Tag 15: Viele Pflanzen sterben, Lebensräume ändern sich.");
+      if(currentDay === 20) logEvent("Tag 20: Globale Temperaturen fallen drastisch.");
+      if(currentDay === 30) logEvent("Tag 30: Erde fast komplett gefroren.");
+      lastDayCommented = currentDay;
+      // Optional: Temperaturverlauf simulieren
+      temps.push(Math.max(0, 25 - currentDay*0.7)); // Beispiel: sinkende Temperatur
+      if(temps.length>30) temps.shift();
+      drawGraph();
+    }
+  }
 
   solarRenderer.render(solarScene, solarCamera);
   renderer.render(scene,camera);
