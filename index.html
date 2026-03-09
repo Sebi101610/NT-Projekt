@@ -2,10 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Earth Climate Simulation</title>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>Earth Climate Simulator</title>
 
 <style>
 
@@ -16,41 +13,30 @@ background:black;
 font-family:Arial;
 }
 
-/* Graph oben links */
-
-#graphBox{
+#tempDisplay{
 position:absolute;
-top:10px;
-left:10px;
-width:320px;
-height:200px;
-background:white;
-border-radius:8px;
-padding:5px;
-}
-
-/* Weltraum Animation */
-
-#spaceBox{
-position:absolute;
-top:10px;
-right:10px;
-width:320px;
-height:200px;
-}
-
-/* Temperatur Anzeige */
-
-#tempBox{
-position:absolute;
-bottom:10px;
+bottom:20px;
 left:50%;
 transform:translateX(-50%);
 color:white;
-font-size:20px;
-background:rgba(0,0,0,0.6);
-padding:10px;
-border-radius:10px;
+font-size:22px;
+}
+
+#graph{
+position:absolute;
+top:20px;
+left:20px;
+width:300px;
+height:150px;
+background:rgba(0,0,0,0.5);
+}
+
+#spaceSim{
+position:absolute;
+top:20px;
+right:20px;
+width:320px;
+height:320px;
 }
 
 </style>
@@ -58,14 +44,11 @@ border-radius:10px;
 
 <body>
 
-<div id="graphBox">
-<canvas id="chart"></canvas>
-</div>
+<canvas id="graph"></canvas>
+<div id="spaceSim"></div>
+<div id="tempDisplay">Temperatur: -- °C</div>
 
-<div id="spaceBox"></div>
-
-<div id="tempBox">Click on Earth</div>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="script.js"></script>
 
 </body>
