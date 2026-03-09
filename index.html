@@ -91,8 +91,8 @@ button{
 <div id="tempDisplay">Temperatur: -- °C</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
 
+<script>
 // ===== GLOBUS =====
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -141,7 +141,6 @@ function drawGraph(){
   ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
-
   // Linie
   ctx.beginPath();
   for(let i=0;i<temps.length;i++){
@@ -250,3 +249,7 @@ function animate(){
   renderer.render(scene,camera);
 }
 animate();
+</script>
+
+</body>
+</html>
