@@ -60,9 +60,11 @@ let temps=[];
 
 function drawGraph(){
   ctx.clearRect(0,0,300,150);
+  // Achsen
   ctx.strokeStyle="white";
   ctx.beginPath(); ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
+  // Linie
   ctx.beginPath();
   for(let i=0;i<temps.length;i++){
     let x = 10 + i*9;
@@ -151,7 +153,7 @@ function turnOffSun(){
   sunOn=false;
   solarScene.remove(sun);
   logEvent("Sonne ausgeschaltet");
-  lastDayCommented = 0; // Reset Kommentarzähler
+  lastDayCommented = 0;
 }
 
 // ===== RESET =====
@@ -165,29 +167,30 @@ function animate(){
   earth.rotation.y += 0.0005;
 
   // Sonnensystem
-  day += 0.01; // Simulierte Tagesfortschritte
+  day += 0.01; 
 
   planets.forEach(p=>{
     p.userData.angle += p.userData.speed;
-    if(!sunOn) p.userData.radius += 0.01; // Drift bei ausgeschalteter Sonne
+    if(!sunOn) p.userData.radius += 0.01; // Planeten driftet bei ausgeschalteter Sonne
     p.position.x = Math.cos(p.userData.angle)*p.userData.radius;
     p.position.z = Math.sin(p.userData.angle)*p.userData.radius;
   });
 
-  // Tagesbasierte Kommentare nur wenn Sonne aus ist
+  // Tagesbasierte Kommentare wenn Sonne aus
   if(!sunOn){
     const currentDay = Math.floor(day);
     if(currentDay>lastDayCommented){
-      if(currentDay === 1) logEvent("Tag 1: Temperaturen beginnen zu sinken.");
-      if(currentDay === 3) logEvent("Tag 3: Erste Pflanzen sterben.");
-      if(currentDay === 5) logEvent("Tag 5: Kleine Gewässer beginnen zu gefrieren.");
-      if(currentDay === 10) logEvent("Tag 10: Ozeane gefrieren teilweise.");
-      if(currentDay === 15) logEvent("Tag 15: Viele Pflanzen sterben, Lebensräume ändern sich.");
-      if(currentDay === 20) logEvent("Tag 20: Globale Temperaturen fallen drastisch.");
-      if(currentDay === 30) logEvent("Tag 30: Erde fast komplett gefroren.");
+      switch(currentDay){
+        case 1: logEvent("Tag 1: Temperaturen beginnen zu sinken. Gravitation leicht schwächer, minimaler Einfluss auf Menschheit."); break;
+        case 3: logEvent("Tag 3: Erste Pflanzen sterben. Gravitation reduziert sich spürbar, leichte Probleme für Infrastruktur."); break;
+        case 5: logEvent("Tag 5: Kleine Gewässer beginnen zu gefrieren. Menschliche Aktivitäten stark eingeschränkt."); break;
+        case 10: logEvent("Tag 10: Ozeane gefrieren teilweise. Gravitation ungleichmäßig, Auswirkungen auf Gezeiten und Flugverkehr."); break;
+        case 15: logEvent("Tag 15: Viele Pflanzen sterben, Nahrungsknappheit beginnt. Menschen müssen sich stark anpassen."); break;
+        case 20: logEvent("Tag 20: Globale Temperaturen fallen drastisch. Gravitation beeinträchtigt Satellitenbahnen, menschliche Versorgungsketten stark gestört."); break;
+        case 30: logEvent("Tag 30: Erde fast komplett gefroren. Gravitation kritisch verändert, menschliches Leben extrem eingeschränkt."); break;
+      }
       lastDayCommented = currentDay;
-      // Optional: Temperaturverlauf simulieren
-      temps.push(Math.max(0, 25 - currentDay*0.7)); // Beispiel: sinkende Temperatur
+      temps.push(Math.max(0,25-currentDay*0.7));
       if(temps.length>30) temps.shift();
       drawGraph();
     }
