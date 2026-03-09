@@ -1,104 +1,150 @@
-let scene = new THREE.Scene()
+/* ===== GLOBUS ===== */
 
-let camera = new THREE.PerspectiveCamera(
+const scene = new THREE.Scene()
+
+const camera = new THREE.PerspectiveCamera(
 60,
-window.innerWidth / window.innerHeight,
+window.innerWidth/window.innerHeight,
 0.1,
 1000
 )
 
 camera.position.z = 3
 
-let renderer = new THREE.WebGLRenderer({ antialias:true })
-renderer.setSize(window.innerWidth, window.innerHeight)
+const renderer = new THREE.WebGLRenderer({antialias:true})
+renderer.setSize(window.innerWidth,window.innerHeight)
 document.body.appendChild(renderer.domElement)
 
 /* LICHT */
 
-let light = new THREE.PointLight(0xffffff,1.5)
+const light = new THREE.DirectionalLight(0xffffff,1)
 light.position.set(5,3,5)
 scene.add(light)
 
-scene.add(new THREE.AmbientLight(0xffffff,0.4))
+/* ERDE */
 
-/* TEXTURE */
-
-let textureLoader = new THREE.TextureLoader()
-
-let earthTexture = textureLoader.load(
+const texture = new THREE.TextureLoader().load(
 "https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg"
 )
 
-/* ERDE */
+const earth = new THREE.Mesh(
+new THREE.SphereGeometry(1,64,64),
+new THREE.MeshPhongMaterial({map:texture})
+)
 
-let earthGeometry = new THREE.SphereGeometry(1,64,64)
-
-let earthMaterial = new THREE.MeshPhongMaterial({
-map: earthTexture
-})
-
-let earth = new THREE.Mesh(earthGeometry, earthMaterial)
 scene.add(earth)
 
 /* MARKER */
 
-let markerGeometry = new THREE.SphereGeometry(0.03,16,16)
-let markerMaterial = new THREE.MeshBasicMaterial({color:0xff0000})
-
-let marker = new THREE.Mesh(markerGeometry, markerMaterial)
+const marker = new THREE.Mesh(
+new THREE.SphereGeometry(0.03,16,16),
+new THREE.MeshBasicMaterial({color:0xff0000})
+)
 
 earth.add(marker)
-marker.visible = false
+marker.visible=false
 
-/* SATELLITEN */
+/* ===== GRAPH ===== */
 
-let satellites=[]
+const canvas = document.getElementById("graph")
+const ctx = canvas.getContext("2d")
 
-for(let i=0;i<5;i++){
+canvas.width=300
+canvas.height=150
 
-let geo = new THREE.BoxGeometry(0.04,0.04,0.1)
-let mat = new THREE.MeshBasicMaterial({color:0xffffff})
+let temps=[]
 
-let sat = new THREE.Mesh(geo,mat)
+function drawGraph(){
 
-sat.userData.angle = Math.random()*Math.PI*2
-sat.userData.radius = 1.6
-sat.userData.speed = 0.002 + Math.random()*0.002
+ctx.clearRect(0,0,300,150)
 
-scene.add(sat)
+ctx.strokeStyle="white"
 
-satellites.push(sat)
+ctx.beginPath()
+ctx.moveTo(0,140)
+ctx.lineTo(300,140)
+ctx.stroke()
+
+ctx.beginPath()
+
+for(let i=0;i<temps.length;i++){
+
+let x = i*10
+let y = 140 - temps[i]*3
+
+if(i===0) ctx.moveTo(x,y)
+else ctx.lineTo(x,y)
 
 }
 
-/* RAYCAST */
+ctx.strokeStyle="red"
+ctx.stroke()
 
-let raycaster = new THREE.Raycaster()
-let mouse = new THREE.Vector2()
+}
+
+/* ===== PROTOKOLL ===== */
+
+function logEvent(text){
+
+let log = document.getElementById("log")
+
+let time = new Date().toLocaleTimeString()
+
+log.innerHTML += "["+time+"] "+text+"<br>"
+
+log.scrollTop = log.scrollHeight
+
+}
+
+/* ===== WETTER ===== */
+
+async function loadWeather(lat,lon){
+
+let url =
+`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`
+
+let res = await fetch(url)
+let data = await res.json()
+
+let temp = data.current.temperature_2m
+
+document.getElementById("tempDisplay").innerText =
+"Temperatur: "+temp+" °C"
+
+temps.push(temp)
+
+if(temps.length>30) temps.shift()
+
+drawGraph()
+
+}
+
+/* ===== MARKER KLICK ===== */
+
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
 
 window.addEventListener("click",(event)=>{
 
-mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+mouse.x = (event.clientX/window.innerWidth)*2-1
+mouse.y = -(event.clientY/window.innerHeight)*2+1
 
-raycaster.setFromCamera(mouse, camera)
+raycaster.setFromCamera(mouse,camera)
 
-let intersects = raycaster.intersectObject(earth)
+let hit = raycaster.intersectObject(earth)
 
-if(intersects.length > 0){
+if(hit.length>0){
 
-let worldPoint = intersects[0].point.clone()
-
-let localPoint = earth.worldToLocal(worldPoint)
+let p = earth.worldToLocal(hit[0].point.clone())
 
 marker.position.copy(
-localPoint.normalize().multiplyScalar(1.02)
+p.normalize().multiplyScalar(1.02)
 )
 
-marker.visible = true
+marker.visible=true
 
-let lat = Math.asin(localPoint.y)*(180/Math.PI)
-let lon = Math.atan2(localPoint.z,localPoint.x)*(180/Math.PI)
+let lat = Math.asin(p.y)*(180/Math.PI)
+let lon = Math.atan2(p.z,p.x)*(180/Math.PI)
 
 loadWeather(lat,lon)
 
@@ -106,87 +152,102 @@ loadWeather(lat,lon)
 
 })
 
-/* TEMPERATUR */
-
-async function loadWeather(lat,lon){
-
-try{
-
-let url =
-`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`
-
-let response = await fetch(url)
-
-let data = await response.json()
-
-let temp = data.current.temperature_2m
-
-document.getElementById("tempDisplay").innerText =
-"Temperatur: "+temp+" °C"
-
-}catch(e){
-
-document.getElementById("tempDisplay").innerText =
-"Temperatur konnte nicht geladen werden"
-
-}
-
-}
-
-/* GLOBUS DREHEN */
+/* ===== GLOBUS DREHEN ===== */
 
 let dragging=false
-let prevX=0
-let prevY=0
+let px=0
+let py=0
 
 window.addEventListener("mousedown",(e)=>{
 dragging=true
-prevX=e.clientX
-prevY=e.clientY
+px=e.clientX
+py=e.clientY
 })
 
-window.addEventListener("mouseup",()=>{
-dragging=false
-})
+window.addEventListener("mouseup",()=>dragging=false)
 
 window.addEventListener("mousemove",(e)=>{
 
 if(!dragging) return
 
-let dx = e.clientX - prevX
-let dy = e.clientY - prevY
+earth.rotation.y += (e.clientX-px)*0.005
+earth.rotation.x += (e.clientY-py)*0.005
 
-earth.rotation.y += dx*0.005
-earth.rotation.x += dy*0.005
-
-prevX = e.clientX
-prevY = e.clientY
+px=e.clientX
+py=e.clientY
 
 })
 
-/* ANIMATION */
+/* ===== SONNENSYSTEM ===== */
+
+const solarScene = new THREE.Scene()
+
+const solarCamera = new THREE.PerspectiveCamera(60,1,0.1,1000)
+solarCamera.position.z=10
+
+const solarRenderer = new THREE.WebGLRenderer()
+solarRenderer.setSize(320,320)
+
+document.getElementById("solarSystem").appendChild(solarRenderer.domElement)
+
+let sun = new THREE.Mesh(
+new THREE.SphereGeometry(1,32,32),
+new THREE.MeshBasicMaterial({color:0xffff00})
+)
+
+solarScene.add(sun)
+
+let earthOrbit = new THREE.Mesh(
+new THREE.SphereGeometry(0.3,16,16),
+new THREE.MeshBasicMaterial({color:0x00aaff})
+)
+
+solarScene.add(earthOrbit)
+
+let orbitRadius = 4
+let angle = 0
+
+let sunOn = true
+
+function turnOffSun(){
+
+sunOn=false
+
+solarScene.remove(sun)
+
+logEvent("Sonne ausgeschaltet")
+
+setTimeout(()=>logEvent("Temperaturen beginnen zu fallen"),3000)
+
+setTimeout(()=>logEvent("Erste Pflanzen sterben"),10000)
+
+setTimeout(()=>logEvent("Ozeane beginnen zu gefrieren"),20000)
+
+}
+
+/* RESET */
+
+function resetSimulation(){
+
+location.reload()
+
+}
+
+/* ===== ANIMATION ===== */
 
 function animate(){
 
 requestAnimationFrame(animate)
 
-/* ERDDREHUNG */
-
 earth.rotation.y += 0.0005
 
-/* SATELLITEN */
+angle += 0.01
 
-satellites.forEach(s=>{
-
-s.userData.angle += s.userData.speed
-
-s.position.x = Math.cos(s.userData.angle) * s.userData.radius
-s.position.z = Math.sin(s.userData.angle) * s.userData.radius
-s.position.y = Math.sin(s.userData.angle*0.5) * 0.5
-
-})
+earthOrbit.position.x = Math.cos(angle)*orbitRadius
+earthOrbit.position.z = Math.sin(angle)*orbitRadius
 
 renderer.render(scene,camera)
+solarRenderer.render(solarScene,solarCamera)
 
 }
 
