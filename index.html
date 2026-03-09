@@ -3,80 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <title>Earth Climate Simulation</title>
-
 <style>
-body{
-  margin:0;
-  overflow:hidden;
-  background:black;
-  font-family:Arial;
-}
-
-/* Temperatur */
-#tempDisplay{
-  position:absolute;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  color:white;
-  font-size:22px;
-  z-index:10;
-}
-
-/* Graph */
-#graph{
-  position:absolute;
-  top:20px;
-  left:20px;
-  width:300px;
-  height:150px;
-  background:rgba(0,0,0,0.6);
-  border:1px solid white;
-  z-index:10;
-}
-
-/* Protokoll */
-#log{
-  position:absolute;
-  top:190px;
-  left:20px;
-  width:300px;
-  height:220px;
-  background:rgba(0,0,0,0.6);
-  border:1px solid white;
-  color:white;
-  font-size:14px;
-  overflow-y:auto;
-  padding:5px;
-  z-index:10;
-}
-
-/* Sonnensystem */
-#solarSystem{
-  position:absolute;
-  top:20px;
-  right:20px;
-  width:320px;
-  height:320px;
-  border:1px solid white;
-}
-
-/* Buttons */
-#controls{
-  position:absolute;
-  bottom:20px;
-  right:20px;
-  z-index:10;
-}
-
-button{
-  padding:10px;
-  margin:5px;
-  font-size:14px;
-}
+body{margin:0;overflow:hidden;background:black;font-family:Arial;}
+#tempDisplay{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:white;font-size:22px;z-index:10;}
+#graph{position:absolute;top:20px;left:20px;width:300px;height:150px;background:rgba(0,0,0,0.6);border:1px solid white;z-index:10;}
+#log{position:absolute;top:190px;left:20px;width:300px;height:220px;background:rgba(0,0,0,0.6);border:1px solid white;color:white;font-size:14px;overflow-y:auto;padding:5px;z-index:10;}
+#solarSystem{position:absolute;top:20px;right:20px;width:320px;height:320px;border:1px solid white;}
+#controls{position:absolute;bottom:20px;right:20px;z-index:10;}
+button{padding:10px;margin:5px;font-size:14px;}
 </style>
 </head>
-
 <body>
 
 <canvas id="graph"></canvas>
@@ -97,7 +33,6 @@ button{
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.z = 3;
-
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -108,39 +43,27 @@ light.position.set(5,3,5);
 scene.add(light);
 
 // Erde
-const earthTexture = new THREE.TextureLoader().load(
-  "https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg"
-);
-
-const earth = new THREE.Mesh(
-  new THREE.SphereGeometry(1,64,64),
-  new THREE.MeshPhongMaterial({map:earthTexture})
-);
+const earthTexture = new THREE.TextureLoader().load("https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg");
+const earth = new THREE.Mesh(new THREE.SphereGeometry(1,64,64), new THREE.MeshPhongMaterial({map:earthTexture}));
 scene.add(earth);
 
 // Marker
-const marker = new THREE.Mesh(
-  new THREE.SphereGeometry(0.03,16,16),
-  new THREE.MeshBasicMaterial({color:0xff0000})
-);
+const marker = new THREE.Mesh(new THREE.SphereGeometry(0.03,16,16), new THREE.MeshBasicMaterial({color:0xff0000}));
 earth.add(marker);
 marker.visible=false;
 
 // ===== GRAPH =====
 const canvas = document.getElementById("graph");
 const ctx = canvas.getContext("2d");
-canvas.width=300;
-canvas.height=150;
+canvas.width=300; canvas.height=150;
 let temps=[];
 
 function drawGraph(){
   ctx.clearRect(0,0,300,150);
   // Achsen
   ctx.strokeStyle="white";
-  ctx.beginPath();
-  ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
   // Linie
   ctx.beginPath();
   for(let i=0;i<temps.length;i++){
@@ -149,38 +72,27 @@ function drawGraph(){
     if(i===0) ctx.moveTo(x,y);
     else ctx.lineTo(x,y);
   }
-  ctx.strokeStyle="red";
-  ctx.stroke();
+  ctx.strokeStyle="red"; ctx.stroke();
 }
 
 // ===== PROTOKOLL =====
-function logEvent(text){
-  const log = document.getElementById("log");
-  const time = new Date().toLocaleTimeString();
-  log.innerHTML += "["+time+"] "+text+"<br>";
-  log.scrollTop = log.scrollHeight;
-}
+function logEvent(text){const log=document.getElementById("log"); const time=new Date().toLocaleTimeString(); log.innerHTML += "["+time+"] "+text+"<br>"; log.scrollTop = log.scrollHeight;}
 
 // ===== WETTER =====
 async function loadWeather(lat,lon){
   try{
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const res = await fetch(url); const data = await res.json();
     const temp = data.current.temperature_2m;
     document.getElementById("tempDisplay").innerText = "Temperatur: "+temp+" °C";
-    temps.push(temp);
-    if(temps.length>30) temps.shift();
+    temps.push(temp); if(temps.length>30) temps.shift();
     drawGraph();
-  }catch(e){
-    document.getElementById("tempDisplay").innerText = "Temperatur konnte nicht geladen werden";
-  }
+  }catch(e){document.getElementById("tempDisplay").innerText = "Temperatur konnte nicht geladen werden";}
 }
 
 // ===== MARKER KLICK =====
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
-
 window.addEventListener("click",(event)=>{
   mouse.x = (event.clientX/window.innerWidth)*2-1;
   mouse.y = -(event.clientY/window.innerHeight)*2+1;
@@ -200,56 +112,77 @@ window.addEventListener("click",(event)=>{
 let dragging=false, px=0, py=0;
 window.addEventListener("mousedown",(e)=>{dragging=true; px=e.clientX; py=e.clientY;});
 window.addEventListener("mouseup",()=>dragging=false);
-window.addEventListener("mousemove",(e)=>{
-  if(!dragging) return;
-  earth.rotation.y += (e.clientX-px)*0.005;
-  earth.rotation.x += (e.clientY-py)*0.005;
-  px=e.clientX; py=e.clientY;
-});
+window.addEventListener("mousemove",(e)=>{if(!dragging) return; earth.rotation.y += (e.clientX-px)*0.005; earth.rotation.x += (e.clientY-py)*0.005; px=e.clientX; py=e.clientY;});
 
 // ===== SONNENSYSTEM =====
 const solarScene = new THREE.Scene();
 const solarCamera = new THREE.PerspectiveCamera(60,1,0.1,1000);
-solarCamera.position.z=10;
+solarCamera.position.z=15;
 const solarRenderer = new THREE.WebGLRenderer();
 solarRenderer.setSize(320,320);
 document.getElementById("solarSystem").appendChild(solarRenderer.domElement);
 
-let sun = new THREE.Mesh(new THREE.SphereGeometry(1,32,32), new THREE.MeshBasicMaterial({color:0xffff00}));
+const sun = new THREE.Mesh(new THREE.SphereGeometry(1,32,32), new THREE.MeshBasicMaterial({color:0xffff00}));
 solarScene.add(sun);
 
-let earthOrbit = new THREE.Mesh(new THREE.SphereGeometry(0.3,16,16), new THREE.MeshBasicMaterial({color:0x00aaff}));
-solarScene.add(earthOrbit);
+const planetsData = [
+  {name:"Merkur", color:0xaaaaaa, radius:3, speed:0.04},
+  {name:"Venus", color:0xffcc88, radius:4, speed:0.03},
+  {name:"Erde", color:0x00aaff, radius:5, speed:0.02},
+  {name:"Mars", color:0xff0000, radius:6, speed:0.018},
+  {name:"Jupiter", color:0xffaa00, radius:7.5, speed:0.01},
+  {name:"Saturn", color:0xffddaa, radius:9, speed:0.008},
+  {name:"Uranus", color:0x00ffff, radius:10.5, speed:0.006},
+  {name:"Neptun", color:0x0000ff, radius:12, speed:0.005}
+];
 
-let orbitRadius=4, angle=0;
+const planets = planetsData.map(p=>{
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.3,16,16), new THREE.MeshBasicMaterial({color:p.color}));
+  mesh.userData = {radius:p.radius, speed:p.speed, angle: Math.random()*Math.PI*2};
+  solarScene.add(mesh);
+  return mesh;
+});
+
 let sunOn=true;
+let day=0;
 
 function turnOffSun(){
   if(!sunOn) return;
   sunOn=false;
   solarScene.remove(sun);
   logEvent("Sonne ausgeschaltet");
-  setTimeout(()=>logEvent("Temperaturen beginnen zu fallen"),3000);
-  setTimeout(()=>logEvent("Erste Pflanzen sterben"),10000);
-  setTimeout(()=>logEvent("Ozeane beginnen zu gefrieren"),20000);
 }
 
-function resetSimulation(){
-  location.reload();
-}
+// ===== RESET =====
+function resetSimulation(){location.reload();}
 
 // ===== ANIMATION =====
 function animate(){
   requestAnimationFrame(animate);
+
+  // Globus
   earth.rotation.y += 0.0005;
-  angle += 0.01;
-  earthOrbit.position.x = Math.cos(angle)*orbitRadius;
-  earthOrbit.position.z = Math.sin(angle)*orbitRadius;
-  solarRenderer.render(solarScene,solarCamera);
+
+  // Sonnensystem
+  day += 0.01; // Simuliert Tages-Fortschritt
+
+  planets.forEach(p=>{
+    p.userData.angle += p.userData.speed;
+    if(!sunOn) p.userData.radius += 0.01; // Drift bei ausgeschalteter Sonne
+    p.position.x = Math.cos(p.userData.angle)*p.userData.radius;
+    p.position.z = Math.sin(p.userData.angle)*p.userData.radius;
+  });
+
+  // Log-Ereignisse nach "Tagen"
+  const simulatedDay = Math.floor(day*10);
+  if(sunOn && simulatedDay===3) logEvent("Temperaturen beginnen zu fallen");
+  if(sunOn && simulatedDay===10) logEvent("Erste Pflanzen sterben");
+  if(sunOn && simulatedDay===20) logEvent("Ozeane beginnen zu gefrieren");
+
+  solarRenderer.render(solarScene, solarCamera);
   renderer.render(scene,camera);
 }
 animate();
 </script>
-
 </body>
 </html>
