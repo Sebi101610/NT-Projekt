@@ -127,16 +127,37 @@ function logEvent(text){const log=document.getElementById("log"); const time=new
 
 // ===== WETTER =====
 let selectedLat=0, selectedLon=0;
-async function loadWeather(lat,lon){
-  selectedLat=lat; selectedLon=lon;
+  async function loadWeather(lat,lon){
+
+  selectedLat = lat;
+  selectedLon = lon;
+
+  // Wenn Simulation schon läuft -> KEINE neue Temperatur laden
+  if(!sunOn){
+    return;
+  }
+
   try{
+
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`;
-    const res = await fetch(url); const data = await res.json();
+
+    const res = await fetch(url);
+    const data = await res.json();
+
     const temp = data.current.temperature_2m;
-    document.getElementById("tempDisplay").innerText = "Temperatur: "+temp+" °C";
-    temps.push(temp); if(temps.length>30) temps.shift();
+
+    document.getElementById("tempDisplay").innerText =
+      "Temperatur: " + temp + " °C";
+
+    temps = [temp];   // Startwert für Graph
     drawGraph();
-  }catch(e){document.getElementById("tempDisplay").innerText = "Temperatur konnte nicht geladen werden";}
+
+  }catch(e){
+
+    document.getElementById("tempDisplay").innerText =
+      "Temperatur konnte nicht geladen werden";
+
+  }
 }
 
 // ===== MARKER KLICK =====
