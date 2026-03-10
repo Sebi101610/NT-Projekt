@@ -56,32 +56,69 @@ let temps=[]
 
 function drawGraph(){
 
-ctx.clearRect(0,0,300,150)
+  ctx.clearRect(0,0,300,150)
 
-ctx.strokeStyle="white"
+  ctx.strokeStyle="white"
+  ctx.fillStyle="white"
+  ctx.font="10px Arial"
 
-ctx.beginPath()
-ctx.moveTo(0,140)
-ctx.lineTo(300,140)
-ctx.stroke()
+  // X Achse
+  ctx.beginPath()
+  ctx.moveTo(30,130)
+  ctx.lineTo(290,130)
+  ctx.stroke()
 
-ctx.beginPath()
+  // Y Achse
+  ctx.beginPath()
+  ctx.moveTo(30,10)
+  ctx.lineTo(30,130)
+  ctx.stroke()
 
-for(let i=0;i<temps.length;i++){
+  // Y Skala (Temperatur)
+  for(let i=0;i<=5;i++){
 
-let x = i*10
-let y = 140 - temps[i]*3
+    let temp = 30 - i*10
+    let y = 20 + i*20
 
-if(i===0) ctx.moveTo(x,y)
-else ctx.lineTo(x,y)
+    ctx.fillText(temp+"°C",2,y+3)
+
+    ctx.beginPath()
+    ctx.moveTo(25,y)
+    ctx.lineTo(30,y)
+    ctx.stroke()
+  }
+
+  // X Skala (Tage)
+  for(let i=0;i<temps.length;i++){
+
+    let x = 30 + i*8
+
+    if(i % 5 === 0){
+      ctx.fillText(i,x-3,145)
+    }
+  }
+
+  // Achsentitel
+  ctx.fillText("Temperatur",5,10)
+  ctx.fillText("Tage",250,145)
+
+  // Linie zeichnen
+  ctx.beginPath()
+
+  for(let i=0;i<temps.length;i++){
+
+    let x = 30 + i*8
+    let y = 130 - (temps[i]+50)*1.2
+
+    if(i===0) ctx.moveTo(x,y)
+    else ctx.lineTo(x,y)
+
+  }
+
+  ctx.strokeStyle="red"
+  ctx.stroke()
 
 }
-
-ctx.strokeStyle="red"
-ctx.stroke()
-
-}
-
 /* ===== PROTOKOLL ===== */
 
 function logEvent(text){
