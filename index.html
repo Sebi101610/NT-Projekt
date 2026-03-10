@@ -57,22 +57,71 @@ const canvas = document.getElementById("graph");
 const ctx = canvas.getContext("2d");
 canvas.width=300; canvas.height=150;
 let temps=[];
-
 function drawGraph(){
-  ctx.clearRect(0,0,300,150);
-  ctx.strokeStyle="white";
-  ctx.beginPath(); ctx.moveTo(0,140); ctx.lineTo(300,140); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(10,0); ctx.lineTo(10,150); ctx.stroke();
-  ctx.beginPath();
-  for(let i=0;i<temps.length;i++){
-    let x = 10 + i*9;
-    let y = 140 - temps[i]*3;
-    if(i===0) ctx.moveTo(x,y);
-    else ctx.lineTo(x,y);
-  }
-  ctx.strokeStyle="red"; ctx.stroke();
-}
 
+  ctx.clearRect(0,0,300,150)
+
+  ctx.strokeStyle="white"
+  ctx.fillStyle="white"
+  ctx.font="10px Arial"
+
+  // X Achse
+  ctx.beginPath()
+  ctx.moveTo(30,130)
+  ctx.lineTo(290,130)
+  ctx.stroke()
+
+  // Y Achse
+  ctx.beginPath()
+  ctx.moveTo(30,10)
+  ctx.lineTo(30,130)
+  ctx.stroke()
+
+  // Y Skala (Temperatur)
+  for(let i=0;i<=5;i++){
+
+    let temp = 30 - i*10
+    let y = 20 + i*20
+
+    ctx.fillText(temp+"°C",2,y+3)
+
+    ctx.beginPath()
+    ctx.moveTo(25,y)
+    ctx.lineTo(30,y)
+    ctx.stroke()
+  }
+
+  // X Skala (Tage)
+  for(let i=0;i<temps.length;i++){
+
+    let x = 30 + i*8
+
+    if(i % 5 === 0){
+      ctx.fillText(i,x-3,145)
+    }
+  }
+
+  // Achsentitel
+  ctx.fillText("Temperatur",5,10)
+  ctx.fillText("Tage",250,145)
+
+  // Linie zeichnen
+  ctx.beginPath()
+
+  for(let i=0;i<temps.length;i++){
+
+    let x = 30 + i*8
+    let y = 130 - (temps[i]+50)*1.2
+
+    if(i===0) ctx.moveTo(x,y)
+    else ctx.lineTo(x,y)
+
+  }
+
+  ctx.strokeStyle="red"
+  ctx.stroke()
+
+}
 // ===== PROTOKOLL =====
 function logEvent(text){const log=document.getElementById("log"); const time=new Date().toLocaleTimeString(); log.innerHTML += "["+time+"] "+text+"<br>"; log.scrollTop = log.scrollHeight;}
 
