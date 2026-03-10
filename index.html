@@ -109,11 +109,103 @@ window.addEventListener("click",(event)=>{
 });
 
 // ===== GLOBUS DREHEN =====
-let dragging=false, px=0, py=0;
-window.addEventListener("mousedown",(e)=>{dragging=true; px=e.clientX; py=e.clientY;});
-window.addEventListener("mouseup",()=>dragging=false);
-window.addEventListener("mousemove",(e)=>{if(!dragging) return; earth.rotation.y += (e.clientX-px)*0.005; earth.rotation.x += (e.clientY-py)*0.005; px=e.clientX; py=e.clientY;});
+// ===== TOUCH + MAUS STEUERUNG =====
 
+let dragging=false
+let px=0
+let py=0
+let pinchStartDistance=null
+
+function getTouchDistance(touches){
+  const dx = touches[0].clientX - touches[1].clientX
+  const dy = touches[0].clientY - touches[1].clientY
+  return Math.sqrt(dx*dx + dy*dy)
+}
+
+// Maus drehen
+window.addEventListener("mousedown",(e)=>{
+  dragging=true
+  px=e.clientX
+  py=e.clientY
+})
+
+window.addEventListener("mouseup",()=>dragging=false)
+
+window.addEventListener("mousemove",(e)=>{
+
+  if(!dragging) return
+
+  earth.rotation.y += (e.clientX-px)*0.005
+  earth.rotation.x += (e.clientY-py)*0.005
+
+  px=e.clientX
+  py=e.clientY
+
+})
+
+// Touch drehen
+window.addEventListener("touchstart",(e)=>{
+
+  if(e.touches.length==1){
+
+    dragging=true
+    px=e.touches[0].clientX
+    py=e.touches[0].clientY
+
+  }
+
+  if(e.touches.length==2){
+
+    pinchStartDistance = getTouchDistance(e.touches)
+
+  }
+
+})
+
+// Touch bewegen
+window.addEventListener("touchmove",(e)=>{
+
+  // Globus drehen
+  if(e.touches.length==1 && dragging){
+
+    let cx = e.touches[0].clientX
+    let cy = e.touches[0].clientY
+
+    earth.rotation.y += (cx-px)*0.005
+    earth.rotation.x += (cy-py)*0.005
+
+    px=cx
+    py=cy
+
+  }
+
+  // Zoom mit zwei Fingern
+  if(e.touches.length==2){
+
+    let dist = getTouchDistance(e.touches)
+
+    if(pinchStartDistance){
+
+      let zoom = dist - pinchStartDistance
+
+      camera.position.z -= zoom*0.01
+
+      camera.position.z = Math.max(1.5,Math.min(10,camera.position.z))
+
+    }
+
+    pinchStartDistance = dist
+
+  }
+
+})
+
+window.addEventListener("touchend",()=>{
+
+  dragging=false
+  pinchStartDistance=null
+
+})
 // ===== SONNENSYSTEM =====
 const solarScene = new THREE.Scene();
 const solarCamera = new THREE.PerspectiveCamera(60,1,0.1,1000);
