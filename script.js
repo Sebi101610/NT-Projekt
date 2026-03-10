@@ -173,31 +173,39 @@ const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 
 window.addEventListener("click",(event)=>{
+function setMarker(clientX, clientY){
 
-mouse.x = (event.clientX/window.innerWidth)*2-1
-mouse.y = -(event.clientY/window.innerHeight)*2+1
+  mouse.x = (clientX/window.innerWidth)*2-1
+  mouse.y = -(clientY/window.innerHeight)*2+1
 
-raycaster.setFromCamera(mouse,camera)
+  raycaster.setFromCamera(mouse,camera)
 
-let hit = raycaster.intersectObject(earth)
+  let hit = raycaster.intersectObject(earth)
 
-if(hit.length>0){
+  if(hit.length>0){
 
-let p = earth.worldToLocal(hit[0].point.clone())
+    const p = earth.worldToLocal(hit[0].point.clone())
 
-marker.position.copy(
-p.normalize().multiplyScalar(1.02)
-)
+    marker.position.copy(p.normalize().multiplyScalar(1.02))
+    marker.visible=true
 
-marker.visible=true
+    const lat = Math.asin(p.y)*(180/Math.PI)
+    const lon = Math.atan2(p.z,p.x)*(180/Math.PI)
 
-let lat = Math.asin(p.y)*(180/Math.PI)
-let lon = Math.atan2(p.z,p.x)*(180/Math.PI)
+    loadWeather(lat,lon)
 
-loadWeather(lat,lon)
-
+  }
 }
 
+// Maus
+window.addEventListener("click",(event)=>{
+  setMarker(event.clientX,event.clientY)
+})
+
+// Touch (iPad / Handy)
+window.addEventListener("touchstart",(event)=>{
+  const touch = event.touches[0]
+  setMarker(touch.clientX,touch.clientY)
 })
 
 /* ===== GLOBUS DREHEN ===== */
